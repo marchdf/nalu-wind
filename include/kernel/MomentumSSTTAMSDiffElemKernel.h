@@ -5,8 +5,8 @@
 /*  directory structure                                                   */
 /*------------------------------------------------------------------------*/
 
-#ifndef MOMENTUMHYBRIDTURBELEMKERNEL_H
-#define MOMENTUMHYBRIDTURBELEMKERNEL_H
+#ifndef MOMENTUMSSTTAMSDIFFELEMKERNEL_H
+#define MOMENTUMSSTTAMSDIFFELEMKERNEL_H
 
 #include "kernel/Kernel.h"
 #include "FieldTypeDef.h"
@@ -27,18 +27,18 @@ class ElemDataRequests;
  *
  */
 template <typename AlgTraits>
-class MomentumHybridTurbElemKernel : public NGPKernel<MomentumHybridTurbElemKernel<AlgTraits>>
+class MomentumSSTTAMSDiffElemKernel : public NGPKernel<MomentumSSTTAMSDiffElemKernel<AlgTraits>>
 {
 public:
-  MomentumHybridTurbElemKernel(
+  MomentumSSTTAMSDiffElemKernel(
     const stk::mesh::BulkData&,
     const SolutionOptions&,
-    VectorFieldType*,
+    ScalarFieldType*,
     ElemDataRequests&);
 
-  KOKKOS_FUNCTION MomentumHybridTurbElemKernel() = default;
+  KOKKOS_FUNCTION MomentumSSTTAMSDiffElemKernel() = default;
 
-  KOKKOS_FUNCTION virtual ~MomentumHybridTurbElemKernel() = default;
+  KOKKOS_FUNCTION virtual ~MomentumSSTTAMSDiffElemKernel() = default;
 
   using Kernel::execute;
 
@@ -49,12 +49,24 @@ public:
     ScratchViews<DoubleType, DeviceTeamHandleType, DeviceShmem>&);
 
 private:
-  unsigned  velocityNp1_ {stk::mesh::InvalidOrdinal};
-  unsigned  densityNp1_ {stk::mesh::InvalidOrdinal};
-  unsigned  tkeNp1_ {stk::mesh::InvalidOrdinal};
-  unsigned  alphaNp1_ {stk::mesh::InvalidOrdinal};
-  unsigned  mutij_ {stk::mesh::InvalidOrdinal};
-  unsigned  coordinates_ {stk::mesh::InvalidOrdinal};
+  unsigned velocityNp1_{stk::mesh::InvalidOrdinal};
+  unsigned densityNp1_{stk::mesh::InvalidOrdinal};
+  unsigned tkeNp1_{stk::mesh::InvalidOrdinal};
+  unsigned sdrNp1_{stk::mesh::InvalidOrdinal};
+  unsigned alpha_{stk::mesh::InvalidOrdinal};
+  unsigned mutij_{stk::mesh::InvalidOrdinal};
+  unsigned coordinates_{stk::mesh::InvalidOrdinal};
+  unsigned Mij_{stk::mesh::InvalidOrdinal};
+
+  unsigned avgVelocity_{stk::mesh::InvalidOrdinal};
+  unsigned avgDensity_{stk::mesh::InvalidOrdinal};
+
+  unsigned viscosity_{stk::mesh::InvalidOrdinal};
+
+  const double includeDivU_;
+
+  const double betaStar_;
+  const double CMdeg_;
 
   const bool shiftedGradOp_;
 
@@ -64,4 +76,4 @@ private:
 } // namespace nalu
 } // namespace sierra
 
-#endif /* MOMENTUMHYBRIDTURBELEMKERNEL_H */
+#endif /* MOMENTUMSSTTAMSDIFFELEMKERNEL_H */
