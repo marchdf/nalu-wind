@@ -72,7 +72,10 @@ add_sources(GlobalSourceList
    ComputeMdotElemOpenPenaltyAlgorithm.C
    ComputeMdotInflowAlgorithm.C
    ComputeMdotNonConformalAlgorithm.C
+   ComputeMetricTensorElemAlgorithm.C
    ComputeSSTMaxLengthScaleElemAlgorithm.C
+   ComputeTAMSAveragesElemAlgorithm.C
+   ComputeTAMSKratioElemAlgorithm.C
    ComputeTurbKineticEnergyWallFunctionAlgorithm.C
    ComputeWallFrictionVelocityAlgorithm.C
    ComputeWallModelSDRWallAlgorithm.C
@@ -163,6 +166,7 @@ add_sources(GlobalSourceList
    SurfaceForceAndMomentAlgorithm.C
    SurfaceForceAndMomentAlgorithmDriver.C
    SurfaceForceAndMomentWallFunctionAlgorithm.C
+   TAMSEquationSystem.C
    TimeIntegrator.C
    TpetraLinearSystem.C
    TurbKineticEnergyEquationSystem.C
