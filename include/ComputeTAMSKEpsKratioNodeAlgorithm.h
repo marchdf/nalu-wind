@@ -5,8 +5,8 @@
 /*  directory structure                                                   */
 /*------------------------------------------------------------------------*/
 
-#ifndef COMPUTEMETRICTENSORELEMALGORITHM_H
-#define COMPUTEMETRICTENSORELEMALGORITHM_H
+#ifndef COMPUTETAMSKEPSKRATIONODEALGORITHM_H
+#define COMPUTETAMSKEPSKRATIONODEALGORITHM_H
 
 #include <Algorithm.h>
 #include <FieldTypeDef.h>
@@ -15,21 +15,20 @@ namespace sierra {
 namespace nalu {
 
 class Realm;
-class ComputeMetricTensorElemAlgorithm : public Algorithm {
+class ComputeTAMSKEpsKratioNodeAlgorithm : public Algorithm {
 public:
-  ComputeMetricTensorElemAlgorithm(Realm &realm, stk::mesh::Part *part);
-  virtual ~ComputeMetricTensorElemAlgorithm() {}
+  ComputeTAMSKEpsKratioNodeAlgorithm(Realm &realm, stk::mesh::Part *part);
+  virtual ~ComputeTAMSKEpsKratioNodeAlgorithm() {}
 
   virtual void execute();
 
-  VectorFieldType *coordinates_{nullptr};
-  GenericFieldType *Mij_{nullptr};
-
-  std::vector<double> ws_coordinates;
-  std::vector<double> ws_dndx;
-  std::vector<double> ws_deriv;
-  std::vector<double> ws_det_j;
-  std::vector<double> ws_Mij;
+  ScalarFieldType *alpha_{nullptr};
+  ScalarFieldType *turbKineticEnergy_{nullptr};
+  ScalarFieldType *totalDissRate_{nullptr};
+  ScalarFieldType *viscosity_{nullptr};
+  ScalarFieldType *turbVisc_{nullptr};
+  ScalarFieldType *avgTkeRes_{nullptr};
+  ScalarFieldType *avgTime_{nullptr};
 };
 
 } // namespace nalu
