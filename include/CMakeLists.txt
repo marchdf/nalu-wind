@@ -81,6 +81,7 @@ add_sources(GlobalHeaderList
    ComputeSSTMaxLengthScaleElemAlgorithm.h
    ComputeTAMSAveragesElemAlgorithm.h
    ComputeTAMSKratioElemAlgorithm.h
+   ComputeTAMSResAdequacyElemAlgorithm.h
    ComputeTurbKineticEnergyWallFunctionAlgorithm.h
    ComputeWallFrictionVelocityAlgorithm.h
    ComputeWallModelSDRWallAlgorithm.h
@@ -198,6 +199,7 @@ add_sources(GlobalHeaderList
    TurbKineticEnergySSTNodeSourceSuppAlg.h
    TurbViscKsgsAlgorithm.h
    TurbViscSSTAlgorithm.h
+   TurbViscTAMSSSTAlgorithm.h
    TurbViscSmagorinskyAlgorithm.h
    TurbViscWaleAlgorithm.h
    TurbulenceAveragingPostProcessing.h

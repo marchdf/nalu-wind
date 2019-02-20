@@ -76,6 +76,7 @@ add_sources(GlobalSourceList
    ComputeSSTMaxLengthScaleElemAlgorithm.C
    ComputeTAMSAveragesElemAlgorithm.C
    ComputeTAMSKratioElemAlgorithm.C
+   ComputeTAMSResAdequacyElemAlgorithm.C
    ComputeTurbKineticEnergyWallFunctionAlgorithm.C
    ComputeWallFrictionVelocityAlgorithm.C
    ComputeWallModelSDRWallAlgorithm.C
@@ -177,6 +178,7 @@ add_sources(GlobalSourceList
    TurbKineticEnergySSTNodeSourceSuppAlg.C
    TurbViscKsgsAlgorithm.C
    TurbViscSSTAlgorithm.C
+   TurbViscTAMSSSTAlgorithm.C
    TurbViscSmagorinskyAlgorithm.C
    TurbViscWaleAlgorithm.C
    TurbulenceAveragingPostProcessing.C
