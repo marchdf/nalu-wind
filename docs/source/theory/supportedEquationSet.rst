@@ -693,7 +693,7 @@ modeling is supported through the activation of the SST equation set.
 
 It has been observed that standard 1998 :math:`k-\omega` models display
 a strong sensitivity to the free stream value of :math:`\omega` (see
-Menter, :cite:`Mentor:2003`). To remedy, this, an
+Menter, :cite:`Menter:2003`). To remedy, this, an
 alternative set of transport equations have been used that are based on
 smoothly blending the :math:`k-\omega` model near a wall with
 :math:`k-\epsilon` away from the wall. Because of the relationship
@@ -776,6 +776,83 @@ The final parameter is
 
    arg_{2} = \max\left( \frac{2 \sqrt{k}}{\beta^* \omega y},
    \frac{500 \mu}{\bar{\rho} \omega y^{2}} \right).
+
+
+Rotation-Curvature Correction
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Two different rotation-curvature (RC) corrections have been
+implemented for the SST equations. The first is the was introduced by
+Smirnov and Menter, :cite:`Smirnov:2009`, and summarized `here
+<https://turbmodels.larc.nasa.gov/sst.html#sst-rc>`_. The form of
+the model is the same as that presented above, except that the
+production term :math:`P` in both :math:`k` and :math:`\omega`
+equations is multiplied by :math:`f_{r1}`:
+
+.. math::
+
+   f_{r1} = \max( \min( f_{\text{rotation}}, 1.25), 0.0),
+
+where
+
+.. math::
+
+   f_{\text{rotation}} = (1 + c_{r1}) \frac{2 r^*}{ 1 + r^*} - c_{r1},
+
+.. math::
+
+   r^* = \frac{S}{W},
+
+.. math::
+
+   S_{ij} = \frac{1}{2} \left( \frac{\partial u_i}{\partial x_j} + \frac{\partial u_i}{\partial x_j}\right),
+
+.. math::
+
+   W_{ij} = \frac{1}{2} \left( \frac{\partial u_i}{\partial x_j} - \frac{\partial u_i}{\partial x_j}\right),
+
+.. math::
+
+   S^2 = 2 S_{ij} S_{ij},
+
+.. math::
+
+   W^2 = 2 W_{ij} W_{ij},
+
+.. math::
+
+   c_{r1} = 1.0.
+
+We note here that, compared to the original RC correction, we neglect
+the material derivative of the strain rate tensor
+(:math:`\frac{\mathrm{D} S_{ij}}{\mathrm{D} t} = 0`), and we assume a
+non-rotating frame of reference (:math:`\Omega^{\text{rot}}=0`).
+
+The second implemented RC correction for the SST model is the Helsten
+correction, :cite:`Helsten:1998` and :cite:`Mani2004` , and summarized
+`here
+<https://turbmodels.larc.nasa.gov/sst.html#sst-rc-helsten>`_. The
+destruction term in the original :math:`\omega` equation, :math:`\beta
+\rho \omega^2`, is replaced by:
+
+.. math::
+
+   F_4 \beta \rho \omega^2,
+
+where
+
+.. math::
+
+   F_4 = \frac{1}{1+C_{RC} R_i},
+
+.. math::
+
+   R_i = \frac{W}{S} \left( \frac{W}{S} - 1 \right),
+
+.. math::
+
+   C_{RC} = 1.4.
+
 
 .. _eqn_sst_des:
 

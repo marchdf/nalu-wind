@@ -70,6 +70,7 @@
 #include <node_kernels/TKEKsgsNodeKernel.h>
 #include <node_kernels/TKESSTDESNodeKernel.h>
 #include <node_kernels/TKESSTNodeKernel.h>
+#include <node_kernels/TKESSTRCNodeKernel.h>
 #include <node_kernels/TurbKineticEnergyRodiNodeKernel.h>
 
 // ngp
@@ -159,7 +160,7 @@ TurbKineticEnergyEquationSystem::TurbKineticEnergyEquationSystem(
   realm_.push_equation_to_systems(this);
 
   // sanity check on turbulence model
-  if ( (turbulenceModel_ != SST) && (turbulenceModel_ != KSGS) && (turbulenceModel_ != SST_DES) ) {
+  if ( (turbulenceModel_ != SST) && (turbulenceModel_ != SST_RC) && (turbulenceModel_ != SST_RC_HELSTEN) && (turbulenceModel_ != KSGS) && (turbulenceModel_ != SST_DES) ) {
     throw std::runtime_error("User has requested TurbKinEnergyEqs, however, turbulence model is not KSGS, SST or SST_DES");
   }
 
@@ -321,8 +322,11 @@ TurbKineticEnergyEquationSystem::register_interior_algorithm(
         case KSGS:
           nodeAlg.add_kernel<TKEKsgsNodeKernel>(realm_.meta_data());
           break;
-        case SST:
+        case SST: case SST_RC_HELSTEN:
           nodeAlg.add_kernel<TKESSTNodeKernel>(realm_.meta_data());
+          break;
+        case SST_RC:
+          nodeAlg.add_kernel<TKESSTRCNodeKernel>(realm_.meta_data());
           break;
         case SST_DES:
           nodeAlg.add_kernel<TKESSTDESNodeKernel>(realm_.meta_data());
@@ -439,6 +443,8 @@ TurbKineticEnergyEquationSystem::register_interior_algorithm(
       break;
     }
     case SST:
+    case SST_RC:
+    case SST_RC_HELSTEN:
     case SST_DES: {
       const double sigmaKOne = realm_.get_turb_model_constant(TM_sigmaKOne);
       const double sigmaKTwo = realm_.get_turb_model_constant(TM_sigmaKTwo);
@@ -448,7 +454,7 @@ TurbKineticEnergyEquationSystem::register_interior_algorithm(
     }
     default:
       throw std::runtime_error("Unsupported turbulence model in TurbKe: only "
-                               "SST, SST_DES and Ksgs supported");
+                               "SST, SST_RC, SST_RC_HELSTEN, SST_DES and Ksgs supported");
     }
   } else {
     effDiffFluxCoeffAlg_->partVec_.push_back(part);

@@ -14,8 +14,11 @@ add_sources(GlobalSourceList
   TurbKineticEnergyRodiNodeKernel.C
   TKEKsgsNodeKernel.C
   TKESSTNodeKernel.C
+  TKESSTRCNodeKernel.C
   TKESSTDESNodeKernel.C
   SDRSSTNodeKernel.C
+  SDRSSTRCNodeKernel.C
+  SDRSSTRCHelstenNodeKernel.C
   SDRSSTDESNodeKernel.C
   WallDistNodeKernel.C
   )

@@ -206,6 +206,7 @@ SolutionOptions::load(const YAML::Node & y_node)
     if ( turbulenceModel_ != LAMINAR ) {
       isTurbulent_ = true;
     }
+
     // initialize turbuelnce constants since some laminar models may need such variables, e.g., kappa
     initialize_turbulence_constants();
 
@@ -618,7 +619,7 @@ SolutionOptions::initialize_turbulence_constants()
   turbModelConstantMap_[TM_kappa] = 0.41;
   turbModelConstantMap_[TM_cDESke] = 0.61; 
   turbModelConstantMap_[TM_cDESkw] = 0.78;
-  turbModelConstantMap_[TM_tkeProdLimitRatio] = (turbulenceModel_ == SST || turbulenceModel_ == SST_DES) ? 10.0 : 500.0;
+  turbModelConstantMap_[TM_tkeProdLimitRatio] = (turbulenceModel_ == SST || turbulenceModel_ == SST_RC || turbulenceModel_ == SST_RC_HELSTEN || turbulenceModel_ == SST_DES) ? 10.0 : 500.0;
   turbModelConstantMap_[TM_cmuEps] = 0.0856; 
   turbModelConstantMap_[TM_cEps] = 0.845;
   turbModelConstantMap_[TM_betaStar] = 0.09;
@@ -639,6 +640,8 @@ SolutionOptions::initialize_turbulence_constants()
   turbModelConstantMap_[TM_ci] = 0.9;
   turbModelConstantMap_[TM_elog] = 9.8;
   turbModelConstantMap_[TM_yplus_crit] = 11.63;
+  turbModelConstantMap_[TM_cROne] = 1.0;
+  turbModelConstantMap_[TM_cRCHelsten] = 1.4;
 }
 
 
