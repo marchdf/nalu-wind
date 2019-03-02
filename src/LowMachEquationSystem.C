@@ -1525,6 +1525,7 @@ MomentumEquationSystem::register_interior_algorithm(
           break;
         case TAMS:
           theAlg = new TurbViscTAMSSSTAlgorithm(realm_,part);
+          break;
         default:
           throw std::runtime_error("non-supported turb model");
       }
