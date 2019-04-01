@@ -12,6 +12,7 @@ add_sources(GlobalUnitSourceList
    UnitTestMomentumBuoyancySrcElem.C
    UnitTestMomentumCoriolisSrcElem.C
    UnitTestMomentumHybridTurbElem.C
+   UnitTestMomentumTAMSKEForcingSrcElem.C
    UnitTestMomentumMassElem.C
    UnitTestMomentumNSOElem.C
    UnitTestMomentumNSOKeElem.C
