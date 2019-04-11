@@ -252,7 +252,7 @@ TAMSEquationSystem::register_element_fields(
   realm_.augment_restart_variable_list("average_resolution_adequacy_parameter");
 
   MasterElement *meSCS = sierra::nalu::MasterElementRepo::get_surface_master_element(theTopo);
-  const int numScsIp = meSCS->numIntPoints_;
+  const int numScsIp = meSCS->num_integration_points();
 
   avgMdot_ = &(meta_data.declare_field<GenericFieldType>(stk::topology::ELEMENT_RANK,          
 "average_mass_flow_rate"));
@@ -653,7 +653,7 @@ topology());
 
     // extract master element specifics
     const int nodesPerElement = meSCS->nodesPerElement_;
-    const int numScsIp = meSCS->numIntPoints_;
+    const int numScsIp = meSCS->num_integration_points();
 
     for ( stk::mesh::Bucket::size_type k = 0 ; k < length ; ++k ) {
        double *avgMdot = stk::mesh::field_data(*avgMdot_, b, k);
