@@ -40,32 +40,18 @@ TotalDissipationRateTAMSKESrcElemKernel<AlgTraits>::
                  ->ipNodeMap())
 {
   const stk::mesh::MetaData& metaData = bulkData.mesh_meta_data();
-  ScalarFieldType* tke = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "turbulent_ke");
-  tkeNp1_ = &tke->field_of_state(stk::mesh::StateNP1);
-  ScalarFieldType* tdr = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "total_dissipation_rate");
-  tdrNp1_ = &tdr->field_of_state(stk::mesh::StateNP1);
-  ScalarFieldType* density =
-    metaData.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "density");
-  densityNp1_ = &density->field_of_state(stk::mesh::StateNP1);
-  VectorFieldType* velocity =
-    metaData.get_field<VectorFieldType>(stk::topology::NODE_RANK, "velocity");
-  velocityNp1_ = &(velocity->field_of_state(stk::mesh::StateNP1));
-  visc_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "viscosity");
-  tvisc_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "turbulent_viscosity");
-  dplus_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "dplus_wall_function");
-  alpha_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "k_ratio");
-  minD_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "minimum_distance_to_wall");
-  prod_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "average_production");
-  coordinates_ = metaData.get_field<VectorFieldType>(
-    stk::topology::NODE_RANK, solnOpts.get_coordinates_name());
+
+  tkeNp1_ = get_field_ordinal(metaData, "turbulent_ke");
+  tdrNp1_ = get_field_ordinal(metaData, "total_dissipation_rate");
+  densityNp1_ = get_field_ordinal(metaData, "density");
+  velocityNp1_ = get_field_ordinal(metaData, "velocity");
+  visc_ = get_field_ordinal(metaData, "viscosity");
+  tvisc_ = get_field_ordinal(metaData, "turbulent_viscosity");
+  dplus_ = get_field_ordinal(metaData, "dplus_wall_function");
+  alpha_ = get_field_ordinal(metaData, "k_ratio");
+  minD_ = get_field_ordinal(metaData, "minimum_distance_to_wall");
+  prod_ = get_field_ordinal(metaData, "average_production");
+  coordinates_ = get_field_ordinal(metaData, solnOpts.get_coordinates_name());
 
   MasterElement* meSCV =
     sierra::nalu::MasterElementRepo::get_volume_master_element(
@@ -84,17 +70,17 @@ TotalDissipationRateTAMSKESrcElemKernel<AlgTraits>::
 
   // fields and data
   dataPreReqs.add_coordinates_field(
-    *coordinates_, AlgTraits::nDim_, CURRENT_COORDINATES);
-  dataPreReqs.add_gathered_nodal_field(*tkeNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*tdrNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*densityNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*velocityNp1_, AlgTraits::nDim_);
-  dataPreReqs.add_gathered_nodal_field(*visc_, 1);
-  dataPreReqs.add_gathered_nodal_field(*tvisc_, 1);
-  dataPreReqs.add_gathered_nodal_field(*alpha_, 1);
-  dataPreReqs.add_gathered_nodal_field(*dplus_, 1);
-  dataPreReqs.add_gathered_nodal_field(*minD_, 1);
-  dataPreReqs.add_gathered_nodal_field(*prod_, 1);
+    coordinates_, AlgTraits::nDim_, CURRENT_COORDINATES);
+  dataPreReqs.add_gathered_nodal_field(tkeNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(tdrNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(densityNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(velocityNp1_, AlgTraits::nDim_);
+  dataPreReqs.add_gathered_nodal_field(visc_, 1);
+  dataPreReqs.add_gathered_nodal_field(tvisc_, 1);
+  dataPreReqs.add_gathered_nodal_field(alpha_, 1);
+  dataPreReqs.add_gathered_nodal_field(dplus_, 1);
+  dataPreReqs.add_gathered_nodal_field(minD_, 1);
+  dataPreReqs.add_gathered_nodal_field(prod_, 1);
   dataPreReqs.add_master_element_call(SCV_VOLUME, CURRENT_COORDINATES);
   if (shiftedGradOp_)
     dataPreReqs.add_master_element_call(
@@ -120,25 +106,22 @@ TotalDissipationRateTAMSKESrcElemKernel<AlgTraits>::execute(
   NALU_ALIGNED DoubleType w_coords[AlgTraits::nDim_];
 
   SharedMemView<DoubleType*>& v_tkeNp1 =
-    scratchViews.get_scratch_view_1D(*tkeNp1_);
+    scratchViews.get_scratch_view_1D(tkeNp1_);
   SharedMemView<DoubleType*>& v_tdrNp1 =
-    scratchViews.get_scratch_view_1D(*tdrNp1_);
+    scratchViews.get_scratch_view_1D(tdrNp1_);
   SharedMemView<DoubleType*>& v_densityNp1 =
-    scratchViews.get_scratch_view_1D(*densityNp1_);
+    scratchViews.get_scratch_view_1D(densityNp1_);
   SharedMemView<DoubleType**>& v_velocityNp1 =
-    scratchViews.get_scratch_view_2D(*velocityNp1_);
-  SharedMemView<DoubleType*>& v_visc =
-    scratchViews.get_scratch_view_1D(*visc_);
+    scratchViews.get_scratch_view_2D(velocityNp1_);
+  SharedMemView<DoubleType*>& v_visc = scratchViews.get_scratch_view_1D(visc_);
   SharedMemView<DoubleType*>& v_tvisc =
-    scratchViews.get_scratch_view_1D(*tvisc_);
+    scratchViews.get_scratch_view_1D(tvisc_);
   SharedMemView<DoubleType*>& v_alpha =
-    scratchViews.get_scratch_view_1D(*alpha_);
+    scratchViews.get_scratch_view_1D(alpha_);
   SharedMemView<DoubleType*>& v_dplus =
-    scratchViews.get_scratch_view_1D(*dplus_);
-  SharedMemView<DoubleType*>& v_minD =
-    scratchViews.get_scratch_view_1D(*minD_);
-  SharedMemView<DoubleType*>& v_prod =
-    scratchViews.get_scratch_view_1D(*prod_);
+    scratchViews.get_scratch_view_1D(dplus_);
+  SharedMemView<DoubleType*>& v_minD = scratchViews.get_scratch_view_1D(minD_);
+  SharedMemView<DoubleType*>& v_prod = scratchViews.get_scratch_view_1D(prod_);
   SharedMemView<DoubleType***>& v_dndx =
     shiftedGradOp_
       ? scratchViews.get_me_views(CURRENT_COORDINATES).dndx_scv_shifted
@@ -146,9 +129,8 @@ TotalDissipationRateTAMSKESrcElemKernel<AlgTraits>::execute(
   SharedMemView<DoubleType*>& v_scv_volume =
     scratchViews.get_me_views(CURRENT_COORDINATES).scv_volume;
 
-
-  SharedMemView<DoubleType**>& v_coords = 
-    scratchViews.get_scratch_view_2D(*coordinates_);
+  SharedMemView<DoubleType**>& v_coords =
+    scratchViews.get_scratch_view_2D(coordinates_);
 
   for (int ip = 0; ip < AlgTraits::numScvIp_; ++ip) {
 
@@ -170,7 +152,7 @@ TotalDissipationRateTAMSKESrcElemKernel<AlgTraits>::execute(
     for (int i = 0; i < AlgTraits::nDim_; ++i) {
       w_coords[i] = 0.0;
       for (int j = 0; j < AlgTraits::nDim_; ++j) {
-        w_dudx[i][j] = 0.0; 
+        w_dudx[i][j] = 0.0;
       }
     }
 
@@ -189,7 +171,7 @@ TotalDissipationRateTAMSKESrcElemKernel<AlgTraits>::execute(
       prod += r * v_prod(ic);
 
       for (int i = 0; i < AlgTraits::nDim_; ++i) {
-        w_coords[i] += r*v_coords(ic,i);
+        w_coords[i] += r * v_coords(ic, i);
         const DoubleType dni = v_dndx(ip, ic, i);
         const DoubleType ui = v_velocityNp1(ic, i);
         for (int j = 0; j < AlgTraits::nDim_; ++j) {
@@ -198,42 +180,52 @@ TotalDissipationRateTAMSKESrcElemKernel<AlgTraits>::execute(
       }
     }
 
-    // The changes to the standard KE RANS approach in TAMS result in two changes:
-    // 1) improvements to the production based on the resolved fluctuations
-    // 2) the addition of alpha to modify the production
-    // 3) the averaging of the production, thus it's calculation has been moved to the
+    // The changes to the standard KE RANS approach in TAMS result in two
+    // changes: 1) improvements to the production based on the resolved
+    // fluctuations 2) the addition of alpha to modify the production 3) the
+    // averaging of the production, thus it's calculation has been moved to the
     //    averaging function
     const DoubleType Pk = prod;
 
     // Ftwo calc from Chien 1982 K-epsilon model
-    const DoubleType Re_t = rho * tke * tke / visc / stk::math::max(tdr, 1.0e-16);
-    const DoubleType fTwo = 1.0 - 0.4/1.8 * stk::math::exp(-Re_t*Re_t / 36.0);
+    const DoubleType Re_t =
+      rho * tke * tke / visc / stk::math::max(tdr, 1.0e-16);
+    const DoubleType fTwo =
+      1.0 - 0.4 / 1.8 * stk::math::exp(-Re_t * Re_t / 36.0);
 
-    // Pe includes 1/k scaling; k may be zero at a dirichlet low Re approach (clip)
-    const DoubleType PeFac = cEpsOne_ * fOne_ * Pk / stk::math::max(tke, 1.0e-16);
+    // Pe includes 1/k scaling; k may be zero at a dirichlet low Re approach
+    // (clip)
+    const DoubleType PeFac =
+      cEpsOne_ * fOne_ * Pk / stk::math::max(tke, 1.0e-16);
     const DoubleType Pe = PeFac * tdr;
-    // FIXME: Currently treating the epsilon in fTwo explicitly... 
+    // FIXME: Currently treating the epsilon in fTwo explicitly...
     //        see LHS below ... assess if this matters
-    const DoubleType DeFac = cEpsTwo_ * fTwo * rho * tdr / stk::math::max(tke, 1.0e-16);
+    const DoubleType DeFac =
+      cEpsTwo_ * fTwo * rho * tdr / stk::math::max(tke, 1.0e-16);
     const DoubleType De = DeFac * tdr;
     // Wall distance source term, rho's cancel...
-    const DoubleType LeFac = 2.0 * visc * stk::math::exp(-0.5*dplus) / minD / minD;
+    const DoubleType LeFac =
+      2.0 * visc * stk::math::exp(-0.5 * dplus) / minD / minD;
     const DoubleType Le = -LeFac * tdr;
 
-    //std::ofstream tmpFile;
-    //tmpFile.open("TDRsrc.txt");
-    
-    //tmpFile << " (" << w_coords[0] << ", "<< w_coords[1] << ", " << w_coords[2] << ") " << tdr <<" " << tke << " " << Pe << " " << De << " " << Le << " " << minD << " " << dplus << " " << tvisc << std::endl;
-    
-    //tmpFile.close();
+    // std::ofstream tmpFile;
+    // tmpFile.open("TDRsrc.txt");
 
-    //const DoubleType extraFac = -cEpsTwo_ * stk::math::exp(-Re_t*Re_t / 36.0) * rho * rho * rho * tke * tke * tke / 81.0 / visc / visc / stk::math::max(tdr, 1.0e-16);
+    // tmpFile << " (" << w_coords[0] << ", "<< w_coords[1] << ", " <<
+    // w_coords[2] << ") " << tdr <<" " << tke << " " << Pe << " " << De << " "
+    // << Le << " " << minD << " " << dplus << " " << tvisc << std::endl;
+
+    // tmpFile.close();
+
+    // const DoubleType extraFac = -cEpsTwo_ * stk::math::exp(-Re_t*Re_t / 36.0)
+    // * rho * rho * rho * tke * tke * tke / 81.0 / visc / visc /
+    // stk::math::max(tdr, 1.0e-16);
 
     // assemble RHS and LHS
     rhs(nearestNode) += (Pe - De + Le) * scV;
     for (int ic = 0; ic < AlgTraits::nodesPerElement_; ++ic) {
       lhs(nearestNode, ic) +=
-        v_shape_function_(ip, ic) * (2.0*DeFac + LeFac) * scV;
+        v_shape_function_(ip, ic) * (2.0 * DeFac + LeFac) * scV;
     }
   }
 }

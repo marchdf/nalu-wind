@@ -11,6 +11,7 @@
 
 #include "BuildTemplates.h"
 #include "ScratchViews.h"
+#include "utils/StkHelpers.h"
 
 // stk_mesh/base/fem
 #include <stk_mesh/base/Entity.hpp>
@@ -22,11 +23,12 @@ namespace sierra {
 namespace nalu {
 
 template <typename AlgTraits>
-TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::TurbKineticEnergySSTTAMSSrcElemKernel(
-  const stk::mesh::BulkData& bulkData,
-  const SolutionOptions& solnOpts,
-  ElemDataRequests& dataPreReqs,
-  const bool lumpedMass)
+TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::
+  TurbKineticEnergySSTTAMSSrcElemKernel(
+    const stk::mesh::BulkData& bulkData,
+    const SolutionOptions& solnOpts,
+    ElemDataRequests& dataPreReqs,
+    const bool lumpedMass)
   : Kernel(),
     lumpedMass_(lumpedMass),
     shiftedGradOp_(solnOpts.get_shifted_grad_op("velocity")),
@@ -37,20 +39,13 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::TurbKineticEnergySSTTAMSSrcEle
                  ->ipNodeMap())
 {
   const stk::mesh::MetaData& metaData = bulkData.mesh_meta_data();
-  tkeNp1_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "turbulent_ke");
-  sdrNp1_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "specific_dissipation_rate");
-  densityNp1_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "average_density");
-  velocityNp1_ = metaData.get_field<VectorFieldType>(
-    stk::topology::NODE_RANK, "average_velocity");
-  tvisc_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "turbulent_viscosity");
-  alpha_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "k_ratio");  
-  coordinates_ = metaData.get_field<VectorFieldType>(
-    stk::topology::NODE_RANK, solnOpts.get_coordinates_name());
+  tkeNp1_ = get_field_ordinal(metaData, "turbulent_ke");
+  sdrNp1_ = get_field_ordinal(metaData, "specific_dissipation_rate");
+  densityNp1_ = get_field_ordinal(metaData, "average_density");
+  velocityNp1_ = get_field_ordinal(metaData, "average_velocity");
+  tvisc_ = get_field_ordinal(metaData, "turbulent_viscosity");
+  alpha_ = get_field_ordinal(metaData, "k_ratio");
+  coordinates_ = get_field_ordinal(metaData, solnOpts.get_coordinates_name());
 
   MasterElement* meSCV =
     sierra::nalu::MasterElementRepo::get_volume_master_element(
@@ -69,13 +64,13 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::TurbKineticEnergySSTTAMSSrcEle
 
   // fields and data
   dataPreReqs.add_coordinates_field(
-    *coordinates_, AlgTraits::nDim_, CURRENT_COORDINATES);
-  dataPreReqs.add_gathered_nodal_field(*tkeNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*sdrNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*densityNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*velocityNp1_, AlgTraits::nDim_);
-  dataPreReqs.add_gathered_nodal_field(*tvisc_, 1);
-  dataPreReqs.add_gathered_nodal_field(*alpha_, 1);
+    coordinates_, AlgTraits::nDim_, CURRENT_COORDINATES);
+  dataPreReqs.add_gathered_nodal_field(tkeNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(sdrNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(densityNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(velocityNp1_, AlgTraits::nDim_);
+  dataPreReqs.add_gathered_nodal_field(tvisc_, 1);
+  dataPreReqs.add_gathered_nodal_field(alpha_, 1);
   dataPreReqs.add_master_element_call(SCV_VOLUME, CURRENT_COORDINATES);
   if (shiftedGradOp_)
     dataPreReqs.add_master_element_call(
@@ -100,17 +95,17 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::execute(
   NALU_ALIGNED DoubleType w_dudx[AlgTraits::nDim_][AlgTraits::nDim_];
 
   SharedMemView<DoubleType*>& v_tkeNp1 =
-    scratchViews.get_scratch_view_1D(*tkeNp1_);
+    scratchViews.get_scratch_view_1D(tkeNp1_);
   SharedMemView<DoubleType*>& v_sdrNp1 =
-    scratchViews.get_scratch_view_1D(*sdrNp1_);
+    scratchViews.get_scratch_view_1D(sdrNp1_);
   SharedMemView<DoubleType*>& v_densityNp1 =
-    scratchViews.get_scratch_view_1D(*densityNp1_);
+    scratchViews.get_scratch_view_1D(densityNp1_);
   SharedMemView<DoubleType**>& v_velocityNp1 =
-    scratchViews.get_scratch_view_2D(*velocityNp1_);
+    scratchViews.get_scratch_view_2D(velocityNp1_);
   SharedMemView<DoubleType*>& v_tvisc =
-    scratchViews.get_scratch_view_1D(*tvisc_);
+    scratchViews.get_scratch_view_1D(tvisc_);
   SharedMemView<DoubleType*>& v_alpha =
-    scratchViews.get_scratch_view_1D(*alpha_);
+    scratchViews.get_scratch_view_1D(alpha_);
   SharedMemView<DoubleType***>& v_dndx =
     shiftedGradOp_
       ? scratchViews.get_me_views(CURRENT_COORDINATES).dndx_scv_shifted
@@ -159,15 +154,16 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::execute(
     DoubleType Pk_imp = 0.0;
     for (int i = 0; i < AlgTraits::nDim_; ++i) {
       for (int j = 0; j < AlgTraits::nDim_; ++j) {
-        // The changes to the standard SST RANS approach in TAMS result in two changes:
+        // The changes to the standard SST RANS approach in TAMS result in two
+        // changes:
         Pk += w_dudx[i][j] * (w_dudx[i][j] + w_dudx[j][i]);
         // 1) improvements to the production based on the resolved fluctuations
         // FIXME: See KE Implementation
-        //Pk_imp += (w_dudx[i][j] + w_dudx[j][i]) * w_resStress[i][j];
+        // Pk_imp += (w_dudx[i][j] + w_dudx[j][i]) * w_resStress[i][j];
       }
     }
     // 2) the addition of alpha to modify the production
-    Pk *= alpha*tvisc;
+    Pk *= alpha * tvisc;
     Pk = Pk - Pk_imp;
 
     // tke factor
@@ -185,7 +181,7 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::execute(
   }
 }
 
-INSTANTIATE_KERNEL(TurbKineticEnergySSTTAMSSrcElemKernel);
+INSTANTIATE_KERNEL(TurbKineticEnergySSTTAMSSrcElemKernel)
 
 } // namespace nalu
 } // namespace sierra

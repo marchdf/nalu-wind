@@ -46,14 +46,14 @@ public:
 private:
   TurbKineticEnergySSTTAMSSrcElemKernel() = delete;
 
-  ScalarFieldType* tkeNp1_{nullptr};
-  ScalarFieldType* sdrNp1_{nullptr};
-  ScalarFieldType* densityNp1_{nullptr};
-  VectorFieldType* velocityNp1_{nullptr};
-  GenericFieldType* resStressNp1_{nullptr};
-  ScalarFieldType* tvisc_{nullptr};
-  ScalarFieldType* alpha_{nullptr};
-  VectorFieldType* coordinates_{nullptr};
+  unsigned tkeNp1_{stk::mesh::InvalidOrdinal};
+  unsigned sdrNp1_{stk::mesh::InvalidOrdinal};
+  unsigned densityNp1_{stk::mesh::InvalidOrdinal};
+  unsigned velocityNp1_{stk::mesh::InvalidOrdinal};
+  unsigned resStressNp1_{stk::mesh::InvalidOrdinal};
+  unsigned tvisc_{stk::mesh::InvalidOrdinal};
+  unsigned alpha_{stk::mesh::InvalidOrdinal};
+  unsigned coordinates_{stk::mesh::InvalidOrdinal};
 
   const bool lumpedMass_;
   const bool shiftedGradOp_;

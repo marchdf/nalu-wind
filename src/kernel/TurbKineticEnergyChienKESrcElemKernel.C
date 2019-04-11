@@ -23,11 +23,12 @@ namespace sierra {
 namespace nalu {
 
 template <typename AlgTraits>
-TurbKineticEnergyChienKESrcElemKernel<AlgTraits>::TurbKineticEnergyChienKESrcElemKernel(
-  const stk::mesh::BulkData& bulkData,
-  const SolutionOptions& solnOpts,
-  ElemDataRequests& dataPreReqs,
-  const bool lumpedMass)
+TurbKineticEnergyChienKESrcElemKernel<AlgTraits>::
+  TurbKineticEnergyChienKESrcElemKernel(
+    const stk::mesh::BulkData& bulkData,
+    const SolutionOptions& solnOpts,
+    ElemDataRequests& dataPreReqs,
+    const bool lumpedMass)
   : Kernel(),
     lumpedMass_(lumpedMass),
     shiftedGradOp_(solnOpts.get_shifted_grad_op("velocity")),
@@ -37,23 +38,14 @@ TurbKineticEnergyChienKESrcElemKernel<AlgTraits>::TurbKineticEnergyChienKESrcEle
 {
   const stk::mesh::MetaData& metaData = bulkData.mesh_meta_data();
 
-  ScalarFieldType* tke = metaData.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "turbulent_ke");
-  tkeNp1_ = &tke->field_of_state(stk::mesh::StateNP1);
-
-  ScalarFieldType* tdr = metaData.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "total_dissipation_rate");
-  tdrNp1_ = &tdr->field_of_state(stk::mesh::StateNP1);
-
-  ScalarFieldType* density = metaData.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "density");
-  densityNp1_ = &density->field_of_state(stk::mesh::StateNP1);
-
-  VectorFieldType* velocity = metaData.get_field<VectorFieldType>(stk::topology::NODE_RANK, "velocity");
-  velocityNp1_ = &(velocity->field_of_state(stk::mesh::StateNP1));
-
-  visc_ = metaData.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "viscosity");
-  tvisc_ = metaData.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "turbulent_viscosity");
-  minD_ = metaData.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "minimum_distance_to_wall");
-  coordinates_ = metaData.get_field<VectorFieldType>(
-    stk::topology::NODE_RANK, solnOpts.get_coordinates_name());
+  tkeNp1_ = get_field_ordinal(metaData, "turbulent_ke");
+  tdrNp1_ = get_field_ordinal(metaData, "total_dissipation_rate");
+  densityNp1_ = get_field_ordinal(metaData, "density");
+  velocityNp1_ = get_field_ordinal(metaData, "velocity");
+  visc_ = get_field_ordinal(metaData, "viscosity");
+  tvisc_ = get_field_ordinal(metaData, "turbulent_viscosity");
+  minD_ = get_field_ordinal(metaData, "minimum_distance_to_wall");
+  coordinates_ = get_field_ordinal(metaData, solnOpts.get_coordinates_name());
 
   MasterElement* meSCV =
     sierra::nalu::MasterElementRepo::get_volume_master_element(
@@ -72,14 +64,14 @@ TurbKineticEnergyChienKESrcElemKernel<AlgTraits>::TurbKineticEnergyChienKESrcEle
 
   // fields and data
   dataPreReqs.add_coordinates_field(
-    *coordinates_, AlgTraits::nDim_, CURRENT_COORDINATES);
-  dataPreReqs.add_gathered_nodal_field(*tkeNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*tdrNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*densityNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*velocityNp1_, AlgTraits::nDim_);
-  dataPreReqs.add_gathered_nodal_field(*tvisc_, 1);
-  dataPreReqs.add_gathered_nodal_field(*visc_, 1);
-  dataPreReqs.add_gathered_nodal_field(*minD_, 1);
+    coordinates_, AlgTraits::nDim_, CURRENT_COORDINATES);
+  dataPreReqs.add_gathered_nodal_field(tkeNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(tdrNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(densityNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(velocityNp1_, AlgTraits::nDim_);
+  dataPreReqs.add_gathered_nodal_field(tvisc_, 1);
+  dataPreReqs.add_gathered_nodal_field(visc_, 1);
+  dataPreReqs.add_gathered_nodal_field(minD_, 1);
 
   dataPreReqs.add_master_element_call(SCV_VOLUME, CURRENT_COORDINATES);
   if (shiftedGradOp_)
@@ -106,19 +98,17 @@ TurbKineticEnergyChienKESrcElemKernel<AlgTraits>::execute(
   NALU_ALIGNED DoubleType w_coords[AlgTraits::nDim_];
 
   SharedMemView<DoubleType*>& v_tkeNp1 =
-    scratchViews.get_scratch_view_1D(*tkeNp1_);
+    scratchViews.get_scratch_view_1D(tkeNp1_);
   SharedMemView<DoubleType*>& v_tdrNp1 =
-    scratchViews.get_scratch_view_1D(*tdrNp1_);
+    scratchViews.get_scratch_view_1D(tdrNp1_);
   SharedMemView<DoubleType*>& v_densityNp1 =
-    scratchViews.get_scratch_view_1D(*densityNp1_);
+    scratchViews.get_scratch_view_1D(densityNp1_);
   SharedMemView<DoubleType**>& v_velocityNp1 =
-    scratchViews.get_scratch_view_2D(*velocityNp1_);
-  SharedMemView<DoubleType*>& v_visc =
-    scratchViews.get_scratch_view_1D(*visc_);
+    scratchViews.get_scratch_view_2D(velocityNp1_);
+  SharedMemView<DoubleType*>& v_visc = scratchViews.get_scratch_view_1D(visc_);
   SharedMemView<DoubleType*>& v_tvisc =
-    scratchViews.get_scratch_view_1D(*tvisc_);
-  SharedMemView<DoubleType*>& v_minD =
-    scratchViews.get_scratch_view_1D(*minD_);
+    scratchViews.get_scratch_view_1D(tvisc_);
+  SharedMemView<DoubleType*>& v_minD = scratchViews.get_scratch_view_1D(minD_);
   SharedMemView<DoubleType***>& v_dndx =
     shiftedGradOp_
       ? scratchViews.get_me_views(CURRENT_COORDINATES).dndx_scv_shifted
@@ -126,9 +116,8 @@ TurbKineticEnergyChienKESrcElemKernel<AlgTraits>::execute(
   SharedMemView<DoubleType*>& v_scv_volume =
     scratchViews.get_me_views(CURRENT_COORDINATES).scv_volume;
 
-
   SharedMemView<DoubleType**>& v_coords =
-    scratchViews.get_scratch_view_2D(*coordinates_);
+    scratchViews.get_scratch_view_2D(coordinates_);
 
   for (int ip = 0; ip < AlgTraits::numScvIp_; ++ip) {
 
@@ -164,7 +153,7 @@ TurbKineticEnergyChienKESrcElemKernel<AlgTraits>::execute(
 
       for (int i = 0; i < AlgTraits::nDim_; ++i) {
         const DoubleType ui = v_velocityNp1(ic, i);
-        w_coords[i] += r*v_coords(ic,i);
+        w_coords[i] += r * v_coords(ic, i);
         for (int j = 0; j < AlgTraits::nDim_; ++j) {
           w_dudx[i][j] += v_dndx(ip, ic, j) * ui;
         }
@@ -179,14 +168,16 @@ TurbKineticEnergyChienKESrcElemKernel<AlgTraits>::execute(
     }
     Pk *= tvisc;
 
-    // dissipation 
+    // dissipation
     const DoubleType Dk = rho * tdr;
 
     // wall distance source term (rho's cancel out...)
     const DoubleType lFac = 2.0 * visc / minD / minD;
     DoubleType Lk = -lFac * tke;
 
-    //std::cout << " (" << w_coords[0] << ", "<< w_coords[1] << ", " << w_coords[2] << ") " << tdr <<" " << tke << " " << Pk << " " << Dk << " " << Lk << " " << minD << " " << " " << tvisc << std::endl;
+    // std::cout << " (" << w_coords[0] << ", "<< w_coords[1] << ", " <<
+    // w_coords[2] << ") " << tdr <<" " << tke << " " << Pk << " " << Dk << " "
+    // << Lk << " " << minD << " " << " " << tvisc << std::endl;
 
     // assemble RHS and LHS
     rhs(nearestNode) += (Pk - Dk + Lk) * scV;

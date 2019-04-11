@@ -11,6 +11,7 @@
 
 #include "BuildTemplates.h"
 #include "ScratchViews.h"
+#include "utils/StkHelpers.h"
 
 // stk_mesh/base/fem
 #include <stk_mesh/base/Entity.hpp>
@@ -22,11 +23,12 @@ namespace sierra {
 namespace nalu {
 
 template <typename AlgTraits>
-TurbKineticEnergyTAMSKESrcElemKernel<AlgTraits>::TurbKineticEnergyTAMSKESrcElemKernel(
-  const stk::mesh::BulkData& bulkData,
-  const SolutionOptions& solnOpts,
-  ElemDataRequests& dataPreReqs,
-  const bool lumpedMass)
+TurbKineticEnergyTAMSKESrcElemKernel<AlgTraits>::
+  TurbKineticEnergyTAMSKESrcElemKernel(
+    const stk::mesh::BulkData& bulkData,
+    const SolutionOptions& solnOpts,
+    ElemDataRequests& dataPreReqs,
+    const bool lumpedMass)
   : Kernel(),
     lumpedMass_(lumpedMass),
     shiftedGradOp_(solnOpts.get_shifted_grad_op("velocity")),
@@ -37,26 +39,17 @@ TurbKineticEnergyTAMSKESrcElemKernel<AlgTraits>::TurbKineticEnergyTAMSKESrcElemK
                  ->ipNodeMap())
 {
   const stk::mesh::MetaData& metaData = bulkData.mesh_meta_data();
-  tkeNp1_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "turbulent_ke");
-  tdrNp1_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "total_dissipation_rate");
-  densityNp1_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "average_density");
-  velocityNp1_ = metaData.get_field<VectorFieldType>(
-    stk::topology::NODE_RANK, "average_velocity");
-  visc_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "viscosity");
-  tvisc_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "turbulent_viscosity");
-  alpha_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "k_ratio");  
-  minD_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "minimum_distance_to_wall");
-  prod_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "average_production");
-  coordinates_ = metaData.get_field<VectorFieldType>(
-    stk::topology::NODE_RANK, solnOpts.get_coordinates_name());
+
+  tkeNp1_ = get_field_ordinal(metaData, "turbulent_ke");
+  tdrNp1_ = get_field_ordinal(metaData, "total_dissipation_rate");
+  densityNp1_ = get_field_ordinal(metaData, "density");
+  velocityNp1_ = get_field_ordinal(metaData, "velocity");
+  visc_ = get_field_ordinal(metaData, "viscosity");
+  tvisc_ = get_field_ordinal(metaData, "turbulent_viscosity");
+  alpha_ = get_field_ordinal(metaData, "k_ratio");
+  minD_ = get_field_ordinal(metaData, "minimum_distance_to_wall");
+  prod_ = get_field_ordinal(metaData, "average_production");
+  coordinates_ = get_field_ordinal(metaData, solnOpts.get_coordinates_name());
 
   MasterElement* meSCV =
     sierra::nalu::MasterElementRepo::get_volume_master_element(
@@ -75,16 +68,16 @@ TurbKineticEnergyTAMSKESrcElemKernel<AlgTraits>::TurbKineticEnergyTAMSKESrcElemK
 
   // fields and data
   dataPreReqs.add_coordinates_field(
-    *coordinates_, AlgTraits::nDim_, CURRENT_COORDINATES);
-  dataPreReqs.add_gathered_nodal_field(*tkeNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*tdrNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*densityNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*velocityNp1_, AlgTraits::nDim_);
-  dataPreReqs.add_gathered_nodal_field(*visc_, 1);
-  dataPreReqs.add_gathered_nodal_field(*tvisc_, 1);
-  dataPreReqs.add_gathered_nodal_field(*alpha_, 1);
-  dataPreReqs.add_gathered_nodal_field(*minD_, 1);
-  dataPreReqs.add_gathered_nodal_field(*prod_, 1);
+    coordinates_, AlgTraits::nDim_, CURRENT_COORDINATES);
+  dataPreReqs.add_gathered_nodal_field(tkeNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(tdrNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(densityNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(velocityNp1_, AlgTraits::nDim_);
+  dataPreReqs.add_gathered_nodal_field(visc_, 1);
+  dataPreReqs.add_gathered_nodal_field(tvisc_, 1);
+  dataPreReqs.add_gathered_nodal_field(alpha_, 1);
+  dataPreReqs.add_gathered_nodal_field(minD_, 1);
+  dataPreReqs.add_gathered_nodal_field(prod_, 1);
   dataPreReqs.add_master_element_call(SCV_VOLUME, CURRENT_COORDINATES);
   if (shiftedGradOp_)
     dataPreReqs.add_master_element_call(
@@ -107,23 +100,20 @@ TurbKineticEnergyTAMSKESrcElemKernel<AlgTraits>::execute(
   ScratchViews<DoubleType>& scratchViews)
 {
   SharedMemView<DoubleType*>& v_tkeNp1 =
-    scratchViews.get_scratch_view_1D(*tkeNp1_);
+    scratchViews.get_scratch_view_1D(tkeNp1_);
   SharedMemView<DoubleType*>& v_tdrNp1 =
-    scratchViews.get_scratch_view_1D(*tdrNp1_);
+    scratchViews.get_scratch_view_1D(tdrNp1_);
   SharedMemView<DoubleType*>& v_densityNp1 =
-    scratchViews.get_scratch_view_1D(*densityNp1_);
+    scratchViews.get_scratch_view_1D(densityNp1_);
   SharedMemView<DoubleType**>& v_velocityNp1 =
-    scratchViews.get_scratch_view_2D(*velocityNp1_);
-  SharedMemView<DoubleType*>& v_visc =
-    scratchViews.get_scratch_view_1D(*visc_);
+    scratchViews.get_scratch_view_2D(velocityNp1_);
+  SharedMemView<DoubleType*>& v_visc = scratchViews.get_scratch_view_1D(visc_);
   SharedMemView<DoubleType*>& v_tvisc =
-    scratchViews.get_scratch_view_1D(*tvisc_);
+    scratchViews.get_scratch_view_1D(tvisc_);
   SharedMemView<DoubleType*>& v_alpha =
-    scratchViews.get_scratch_view_1D(*alpha_);
-  SharedMemView<DoubleType*>& v_minD =
-    scratchViews.get_scratch_view_1D(*minD_);
-  SharedMemView<DoubleType*>& v_prod =
-    scratchViews.get_scratch_view_1D(*prod_);
+    scratchViews.get_scratch_view_1D(alpha_);
+  SharedMemView<DoubleType*>& v_minD = scratchViews.get_scratch_view_1D(minD_);
+  SharedMemView<DoubleType*>& v_prod = scratchViews.get_scratch_view_1D(prod_);
   SharedMemView<DoubleType***>& v_dndx =
     shiftedGradOp_
       ? scratchViews.get_me_views(CURRENT_COORDINATES).dndx_scv_shifted
@@ -159,28 +149,26 @@ TurbKineticEnergyTAMSKESrcElemKernel<AlgTraits>::execute(
       tvisc += r * v_tvisc(ic);
       alpha += r * v_alpha(ic);
       minD += r * v_minD(ic);
-      prod += r * v_prod(ic);      
-
+      prod += r * v_prod(ic);
     }
 
-    // The changes to the standard KE RANS approach in TAMS result in two changes:
-    // 1) improvements to the production based on the resolved fluctuations
-    // 2) the addition of alpha to modify the production
-    // 3) the averaging of the production, thus it's calculation has been moved to the
+    // The changes to the standard KE RANS approach in TAMS result in two
+    // changes: 1) improvements to the production based on the resolved
+    // fluctuations 2) the addition of alpha to modify the production 3) the
+    // averaging of the production, thus it's calculation has been moved to the
     //    averaging function
     const DoubleType Pk = prod;
 
-    // dissipation 
+    // dissipation
     const DoubleType Dk = rho * tdr;
 
     // wall distance source term (rho's cancel out...)
     const DoubleType lFac = 2.0 * visc / minD / minD;
     DoubleType Lk = -lFac * tke;
 
-    //std::ofstream tmpFile;
-    //tmpFile.open("TKEsrc.txt");
+    // std::ofstream tmpFile;
+    // tmpFile.open("TKEsrc.txt");
 
- 
     // assemble RHS and LHS
     rhs(nearestNode) += (Pk - Dk + Lk) * scV;
     for (int ic = 0; ic < AlgTraits::nodesPerElement_; ++ic) {
@@ -189,7 +177,7 @@ TurbKineticEnergyTAMSKESrcElemKernel<AlgTraits>::execute(
   }
 }
 
-INSTANTIATE_KERNEL(TurbKineticEnergyTAMSKESrcElemKernel);
+INSTANTIATE_KERNEL(TurbKineticEnergyTAMSKESrcElemKernel)
 
 } // namespace nalu
 } // namespace sierra

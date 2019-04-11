@@ -50,7 +50,6 @@ public:
     ScratchViews<DoubleType>&);
 
 private:
-
   double time_{0.0};
   double dt_{0.0};
 
@@ -60,21 +59,21 @@ private:
 
   MomentumTAMSKEForcingElemKernel() = delete;
 
-  VectorFieldType* velocityNp1_{nullptr};
-  ScalarFieldType* densityNp1_{nullptr};
-  ScalarFieldType* tkeNp1_{nullptr};
-  ScalarFieldType* tdrNp1_{nullptr};
-  ScalarFieldType* alphaNp1_{nullptr};
-  VectorFieldType* coordinates_{nullptr};
-  GenericFieldType* Mij_{nullptr};
-  ScalarFieldType* avgResAdeq_{nullptr};
-  ScalarFieldType* minDist_{nullptr};
-  VectorFieldType* avgVelocity_{nullptr};
-  ScalarFieldType* avgDensity_{nullptr};
-  ScalarFieldType *avgTime_{nullptr};
+  unsigned velocityNp1_{stk::mesh::InvalidOrdinal};
+  unsigned densityNp1_{stk::mesh::InvalidOrdinal};
+  unsigned tkeNp1_{stk::mesh::InvalidOrdinal};
+  unsigned tdrNp1_{stk::mesh::InvalidOrdinal};
+  unsigned alphaNp1_{stk::mesh::InvalidOrdinal};
+  unsigned coordinates_{stk::mesh::InvalidOrdinal};
+  unsigned Mij_{stk::mesh::InvalidOrdinal};
+  unsigned avgResAdeq_{stk::mesh::InvalidOrdinal};
+  unsigned minDist_{stk::mesh::InvalidOrdinal};
+  unsigned avgVelocity_{stk::mesh::InvalidOrdinal};
+  unsigned avgDensity_{stk::mesh::InvalidOrdinal};
+  unsigned avgTime_{stk::mesh::InvalidOrdinal};
 
-  ScalarFieldType *viscosity_{nullptr};
-  ScalarFieldType *turbViscosity_{nullptr};
+  unsigned viscosity_{stk::mesh::InvalidOrdinal};
+  unsigned turbViscosity_{stk::mesh::InvalidOrdinal};
 
   // master element
   const double betaStar_;
@@ -82,9 +81,8 @@ private:
   const int* ipNodeMap_;
 
   // scratch space
-  AlignedViewType<DoubleType[AlgTraits::numScvIp_]
-        [AlgTraits::nodesPerElement_]> v_shape_function_ { "v_shape_func" };
-  
+  AlignedViewType<DoubleType[AlgTraits::numScvIp_][AlgTraits::nodesPerElement_]>
+    v_shape_function_{"v_shape_func"};
 };
 
 } // namespace nalu

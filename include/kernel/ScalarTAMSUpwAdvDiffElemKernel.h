@@ -22,13 +22,14 @@ namespace nalu {
 class SolutionOptions;
 class MasterElement;
 class ElemDataRequests;
-template <typename T> class PecletFunction;
+template <typename T>
+class PecletFunction;
 class EquationSystem;
 
 /** CVFEM scalar upwind advection/diffusion kernel
  */
-template<typename AlgTraits>
-class ScalarTAMSUpwAdvDiffElemKernel: public Kernel
+template <typename AlgTraits>
+class ScalarTAMSUpwAdvDiffElemKernel : public Kernel
 {
 public:
   ScalarTAMSUpwAdvDiffElemKernel(
@@ -53,27 +54,26 @@ public:
     SharedMemView<DoubleType*>&,
     ScratchViews<DoubleType>&);
 
-  virtual DoubleType van_leer(
-    const DoubleType &dqm,
-    const DoubleType &dqp);
+  virtual DoubleType van_leer(const DoubleType& dqm, const DoubleType& dqp);
 
 private:
   ScalarTAMSUpwAdvDiffElemKernel() = delete;
 
   const SolutionOptions& solnOpts_;
 
-  ScalarFieldType *scalarQ_{nullptr};
-  VectorFieldType *Gjq_{nullptr};
-  ScalarFieldType *diffFluxCoeff_{nullptr};
-  VectorFieldType *velocityRTM_{nullptr};
-  ScalarFieldType *density_{nullptr};
-  VectorFieldType *coordinates_{nullptr};
-  GenericFieldType *massFlowRate_{nullptr};
+  unsigned scalarQ_{stk::mesh::InvalidOrdinal};
+  unsigned Gjq_{stk::mesh::InvalidOrdinal};
+  unsigned diffFluxCoeff_{stk::mesh::InvalidOrdinal};
+  unsigned velocityRTM_{stk::mesh::InvalidOrdinal};
+  unsigned density_{stk::mesh::InvalidOrdinal};
+  unsigned coordinates_{stk::mesh::InvalidOrdinal};
+  unsigned massFlowRate_{stk::mesh::InvalidOrdinal};
 
   /// Left right node indicators
   const int* lrscv_;
 
-  /// Name of the primitive variable (for upwind options lookup in solution options)
+  /// Name of the primitive variable (for upwind options lookup in solution
+  /// options)
   const std::string dofName_;
 
   double alpha_;
@@ -89,11 +89,13 @@ private:
   PecletFunction<DoubleType>* pecletFunction_{nullptr};
 
   /// Shape functions
-  AlignedViewType<DoubleType[AlgTraits::numScsIp_][AlgTraits::nodesPerElement_]> v_shape_function_ { "v_shape_func" };
-  AlignedViewType<DoubleType[AlgTraits::numScsIp_][AlgTraits::nodesPerElement_]> v_adv_shape_function_{"v_adv_shape_function"};
+  AlignedViewType<DoubleType[AlgTraits::numScsIp_][AlgTraits::nodesPerElement_]>
+    v_shape_function_{"v_shape_func"};
+  AlignedViewType<DoubleType[AlgTraits::numScsIp_][AlgTraits::nodesPerElement_]>
+    v_adv_shape_function_{"v_adv_shape_function"};
 };
 
-}  // nalu
-}  // sierra
+} // namespace nalu
+} // namespace sierra
 
 #endif /* SCALARTAMSUPWADVDIFFELEMKERNEL_H */

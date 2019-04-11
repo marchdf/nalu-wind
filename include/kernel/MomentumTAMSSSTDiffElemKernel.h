@@ -51,19 +51,19 @@ private:
 
   const double includeDivU_;
 
-  VectorFieldType* velocityNp1_{nullptr};
-  ScalarFieldType* densityNp1_{nullptr};
-  ScalarFieldType* tkeNp1_{nullptr};
-  ScalarFieldType* sdrNp1_{nullptr};
-  ScalarFieldType* alphaNp1_{nullptr};
-  GenericFieldType* mutij_{nullptr};
-  VectorFieldType* coordinates_{nullptr};
-  GenericFieldType* Mij_{nullptr};
+  unsigned velocityNp1_{stk::mesh::InvalidOrdinal};
+  unsigned densityNp1_{stk::mesh::InvalidOrdinal};
+  unsigned tkeNp1_{stk::mesh::InvalidOrdinal};
+  unsigned sdrNp1_{stk::mesh::InvalidOrdinal};
+  unsigned alphaNp1_{stk::mesh::InvalidOrdinal};
+  unsigned mutij_{stk::mesh::InvalidOrdinal};
+  unsigned coordinates_{stk::mesh::InvalidOrdinal};
+  unsigned Mij_{stk::mesh::InvalidOrdinal};
 
-  VectorFieldType* avgVelocity_{nullptr};
-  ScalarFieldType* avgDensity_{nullptr};
+  unsigned avgVelocity_{stk::mesh::InvalidOrdinal};
+  unsigned avgDensity_{stk::mesh::InvalidOrdinal};
 
-  ScalarFieldType *viscosity_{nullptr};
+  unsigned viscosity_{stk::mesh::InvalidOrdinal};
 
   // master element
   const int* lrscv_;

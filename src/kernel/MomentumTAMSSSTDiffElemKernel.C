@@ -15,6 +15,7 @@
 // template and scratch space
 #include "BuildTemplates.h"
 #include "ScratchViews.h"
+#include "utils/StkHelpers.h"
 
 // stk_mesh/base/fem
 #include <stk_mesh/base/Entity.hpp>
@@ -32,7 +33,7 @@ MomentumTAMSSSTDiffElemKernel<AlgTraits>::MomentumTAMSSSTDiffElemKernel(
   ScalarFieldType* viscosity,
   ElemDataRequests& dataPreReqs)
   : Kernel(),
-    viscosity_(viscosity),
+    viscosity_(viscosity->mesh_meta_data_ordinal()),
     includeDivU_(solnOpts.includeDivU_),
     betaStar_(solnOpts.get_turb_model_constant(TM_betaStar)),
     CMdeg_(solnOpts.get_turb_model_constant(TM_CMdeg)),
@@ -42,22 +43,17 @@ MomentumTAMSSSTDiffElemKernel<AlgTraits>::MomentumTAMSSSTDiffElemKernel(
     shiftedGradOp_(solnOpts.get_shifted_grad_op("velocity"))
 {
   const stk::mesh::MetaData& metaData = bulkData.mesh_meta_data();
-  velocityNp1_ = metaData.get_field<VectorFieldType>(stk::topology::NODE_RANK, "velocity");
-  densityNp1_ = metaData.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "density");
-  tkeNp1_ = metaData.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "turbulent_ke");
-  sdrNp1_ = metaData.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "specific_dissipation_rate");
-  alphaNp1_ = metaData.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "k_ratio");
-  Mij_ = metaData.get_field<GenericFieldType>(stk::topology::ELEMENT_RANK, "metric_tensor");
+  velocityNp1_ = get_field_ordinal(metaData, "velocity");
+  densityNp1_ = get_field_ordinal(metaData, "density");
+  tkeNp1_ = get_field_ordinal(metaData, "turbulent_ke");
+  sdrNp1_ = get_field_ordinal(metaData, "specific_dissipation_rate");
+  alphaNp1_ = get_field_ordinal(metaData, "k_ratio");
+  Mij_ = get_field_ordinal(metaData, "metric_tensor");
 
-  avgVelocity_ =
-    metaData.get_field<VectorFieldType>(stk::topology::NODE_RANK, "average_velocity");
-  avgDensity_ =
-    metaData.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "average_density");
+  avgVelocity_ = get_field_ordinal(metaData, "average_velocity");
+  avgDensity_ = get_field_ordinal(metaData, "average_density");
 
-  //resAdeq_ = metaData.get_field<ScalarFieldType>(
-  //  stk::topology::NODE_RANK, "resolution_adequacy_parameter");
-  coordinates_ = metaData.get_field<VectorFieldType>(
-    stk::topology::NODE_RANK, solnOpts.get_coordinates_name());
+  coordinates_ = get_field_ordinal(metaData, solnOpts.get_coordinates_name());
 
   MasterElement* meSCS =
     sierra::nalu::MasterElementRepo::get_surface_master_element(
@@ -70,16 +66,16 @@ MomentumTAMSSSTDiffElemKernel<AlgTraits>::MomentumTAMSSSTDiffElemKernel(
 
   // fields
   dataPreReqs.add_coordinates_field(
-    *coordinates_, AlgTraits::nDim_, CURRENT_COORDINATES);
-  dataPreReqs.add_gathered_nodal_field(*velocityNp1_, AlgTraits::nDim_);
-  dataPreReqs.add_gathered_nodal_field(*viscosity_, 1);
-  dataPreReqs.add_gathered_nodal_field(*densityNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*tkeNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*sdrNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(*avgVelocity_, AlgTraits::nDim_);
-  dataPreReqs.add_gathered_nodal_field(*avgDensity_, 1);
-  dataPreReqs.add_gathered_nodal_field(*alphaNp1_, 1);
-  dataPreReqs.add_element_field(*Mij_, AlgTraits::nDim_, AlgTraits::nDim_);
+    coordinates_, AlgTraits::nDim_, CURRENT_COORDINATES);
+  dataPreReqs.add_gathered_nodal_field(velocityNp1_, AlgTraits::nDim_);
+  dataPreReqs.add_gathered_nodal_field(viscosity_, 1);
+  dataPreReqs.add_gathered_nodal_field(densityNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(tkeNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(sdrNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(avgVelocity_, AlgTraits::nDim_);
+  dataPreReqs.add_gathered_nodal_field(avgDensity_, 1);
+  dataPreReqs.add_gathered_nodal_field(alphaNp1_, 1);
+  dataPreReqs.add_element_field(Mij_, AlgTraits::nDim_, AlgTraits::nDim_);
 
   // master element data
   dataPreReqs.add_master_element_call(SCS_AREAV, CURRENT_COORDINATES);
@@ -100,23 +96,22 @@ MomentumTAMSSSTDiffElemKernel<AlgTraits>::execute(
   NALU_ALIGNED DoubleType w_mutijScs[AlgTraits::nDim_ * AlgTraits::nDim_];
 
   SharedMemView<DoubleType**>& v_uNp1 =
-    scratchViews.get_scratch_view_2D(*velocityNp1_);
+    scratchViews.get_scratch_view_2D(velocityNp1_);
   SharedMemView<DoubleType*>& v_rhoNp1 =
-    scratchViews.get_scratch_view_1D(*densityNp1_);
+    scratchViews.get_scratch_view_1D(densityNp1_);
   SharedMemView<DoubleType*>& v_tkeNp1 =
-    scratchViews.get_scratch_view_1D(*tkeNp1_);
+    scratchViews.get_scratch_view_1D(tkeNp1_);
   SharedMemView<DoubleType*>& v_sdrNp1 =
-    scratchViews.get_scratch_view_1D(*sdrNp1_);
-  SharedMemView<DoubleType*>& v_viscosity = 
-    scratchViews.get_scratch_view_1D(*viscosity_);
+    scratchViews.get_scratch_view_1D(sdrNp1_);
+  SharedMemView<DoubleType*>& v_viscosity =
+    scratchViews.get_scratch_view_1D(viscosity_);
   SharedMemView<DoubleType**>& v_avgU =
-    scratchViews.get_scratch_view_2D(*avgVelocity_);
+    scratchViews.get_scratch_view_2D(avgVelocity_);
   SharedMemView<DoubleType*>& v_avgRho =
-    scratchViews.get_scratch_view_1D(*avgDensity_);
+    scratchViews.get_scratch_view_1D(avgDensity_);
   SharedMemView<DoubleType*>& v_alphaNp1 =
-    scratchViews.get_scratch_view_1D(*alphaNp1_);
-  SharedMemView<DoubleType **> &v_Mij =
-      scratchViews.get_scratch_view_2D(*Mij_);
+    scratchViews.get_scratch_view_1D(alphaNp1_);
+  SharedMemView<DoubleType**>& v_Mij = scratchViews.get_scratch_view_2D(Mij_);
 
   SharedMemView<DoubleType**>& v_scs_areav =
     scratchViews.get_me_views(CURRENT_COORDINATES).scs_areav;
@@ -186,24 +181,25 @@ MomentumTAMSSSTDiffElemKernel<AlgTraits>::execute(
       // save off shape function
       const DoubleType r = v_shape_function_(ip, ic);
 
-      muScs       += r * v_viscosity(ic);
+      muScs += r * v_viscosity(ic);
       fluctRhoScs += r * (v_rhoNp1(ic) - v_avgRho(ic));
-      avgRhoScs   += r * v_avgRho(ic);
-      tkeScs      += r * v_tkeNp1(ic);
-      sdrScs      += r * v_sdrNp1(ic);
-      alphaScs    += r * v_alphaNp1(ic);
+      avgRhoScs += r * v_avgRho(ic);
+      tkeScs += r * v_tkeNp1(ic);
+      sdrScs += r * v_sdrNp1(ic);
+      alphaScs += r * v_alphaNp1(ic);
 
       for (int j = 0; j < AlgTraits::nDim_; ++j) {
         const DoubleType avgUj = v_avgU(ic, j);
-        avgDivU += avgUj * v_dndx(ip,ic,j);
+        avgDivU += avgUj * v_dndx(ip, ic, j);
       }
     }
 
-    // This is the divU term for the average quantities in the model for tau_ij^SGRS
-    // Since we are letting SST calculate it's normal mu_t, we need to scale by alpha
-    // here 
+    // This is the divU term for the average quantities in the model for
+    // tau_ij^SGRS Since we are letting SST calculate it's normal mu_t, we need
+    // to scale by alpha here
     for (int i = 0; i < AlgTraits::nDim_; ++i) {
-      const DoubleType avgDivUstress = 2.0/3.0*alphaScs*muScs*avgDivU*v_scs_areav(ip,i)*includeDivU_;
+      const DoubleType avgDivUstress = 2.0 / 3.0 * alphaScs * muScs * avgDivU *
+                                       v_scs_areav(ip, i) * includeDivU_;
       const int indexL = ilNdim + i;
       const int indexR = irNdim + i;
       rhs(indexL) -= avgDivUstress;
@@ -211,7 +207,8 @@ MomentumTAMSSSTDiffElemKernel<AlgTraits>::execute(
     }
 
     // FIXME: Does this need a rho in it?
-    const DoubleType epsilon13Scs = stk::math::pow(betaStar_*tkeScs*sdrScs,1.0/3.0);
+    const DoubleType epsilon13Scs =
+      stk::math::pow(betaStar_ * tkeScs * sdrScs, 1.0 / 3.0);
 
     for (int ic = 0; ic < AlgTraits::nodesPerElement_; ++ic) {
 
@@ -221,7 +218,7 @@ MomentumTAMSSSTDiffElemKernel<AlgTraits>::execute(
 
         // FIXME: Don't believe we need these terms...
         // tke stress term
-        //const DoubleType twoThirdRhoTke =
+        // const DoubleType twoThirdRhoTke =
         //  2.0 / 3.0 * alphaScs * rhoScs * tkeScs * v_scs_areav(ip, i);
 
         const int indexL = ilNdim + i;
@@ -240,15 +237,18 @@ MomentumTAMSSSTDiffElemKernel<AlgTraits>::execute(
           // -mut^jk*dui/dxk*A_j; fixed i over j loop; see below..
           DoubleType lhsfacDiff_i = 0.0;
           for (int k = 0; k < AlgTraits::nDim_; ++k) {
-            //FIXME: I need to verify this form, fluctRho or avgRho, right indices on axj and dndx
+            // FIXME: I need to verify this form, fluctRho or avgRho, right
+            // indices on axj and dndx
             // ..., do I need a deviatoric part only...
-            // fluctRho will be 0 for incompressible, so if that's the right term, need a better 
-            // way to handle it, probably up above...
-            lhsfacDiff_i += -avgRhoScs * CM43 * epsilon13Scs * M43[j][k] * v_dndx(ip, ic, k) * axj;
+            // fluctRho will be 0 for incompressible, so if that's the right
+            // term, need a better way to handle it, probably up above...
+            lhsfacDiff_i += -avgRhoScs * CM43 * epsilon13Scs * M43[j][k] *
+                            v_dndx(ip, ic, k) * axj;
           }
 
           // SGRS (average) term, scaled by alpha
-          const DoubleType lhsfacDiffSGRS_i = -alphaScs*muScs*v_dndx(ip,ic,j)*axj;
+          const DoubleType lhsfacDiffSGRS_i =
+            -alphaScs * muScs * v_dndx(ip, ic, j) * axj;
 
           // lhs; il then ir
           lhs_riC_i += lhsfacDiff_i;
@@ -257,26 +257,27 @@ MomentumTAMSSSTDiffElemKernel<AlgTraits>::execute(
           // -mut^ik*duj/dxk*A_j
           DoubleType lhsfacDiff_j = 0.0;
           for (int k = 0; k < AlgTraits::nDim_; ++k) {
-            //FIXME: See above notes...
-            lhsfacDiff_j += -avgRhoScs * CM43 * epsilon13Scs * M43[i][k] * v_dndx(ip, ic, k) * axj;
+            // FIXME: See above notes...
+            lhsfacDiff_j += -avgRhoScs * CM43 * epsilon13Scs * M43[i][k] *
+                            v_dndx(ip, ic, k) * axj;
           }
 
           // SGRS (average) term, scaled by alpha
-          const DoubleType lhsfacDiffSGRS_j = -alphaScs*muScs*v_dndx(ip,ic,i)*axj;
+          const DoubleType lhsfacDiffSGRS_j =
+            -alphaScs * muScs * v_dndx(ip, ic, i) * axj;
 
-          //DEBUGGING: FIXME: REMOVE
+          // DEBUGGING: FIXME: REMOVE
           if (lhsfacDiff_j._data[0] != lhsfacDiff_j._data[0])
-             int jj = 2;
-          
+            int jj = 2;
+
           if (lhsfacDiffSGRS_j._data[0] != lhsfacDiffSGRS_j._data[0])
-             int kk = 2;
+            int kk = 2;
 
           if (lhs_riC_i._data[0] != lhs_riC_i._data[0])
-             int ll = 2; 
+            int ll = 2;
 
           if (lhs_riCSGRS_i._data[0] != lhs_riCSGRS_i._data[0])
-             int mm = 2;
-
+            int mm = 2;
 
           // lhs; il then ir
           lhs(indexL, icNdim + j) += lhsfacDiff_j + lhsfacDiffSGRS_j;
@@ -292,9 +293,10 @@ MomentumTAMSSSTDiffElemKernel<AlgTraits>::execute(
         const DoubleType fluctUi = v_uNp1(ic, i) - v_avgU(ic, i);
         const DoubleType avgUi = v_avgU(ic, i);
 
-        //FIXME: Verify we shouldn't need these 2/3TKE terms...
-        //rhs(indexL) -= lhs_riC_i * ui + twoThirdRhoTke + lhs_riCSGRS_i * avgUi + avgTwoThirdRhoTke;
-        //rhs(indexR) += lhs_riC_i * ui + twoThirdRhoTke + lhs_riCSGRS_i * avgUi + avgTwoThirdRhoTke;
+        // FIXME: Verify we shouldn't need these 2/3TKE terms...
+        // rhs(indexL) -= lhs_riC_i * ui + twoThirdRhoTke + lhs_riCSGRS_i *
+        // avgUi + avgTwoThirdRhoTke; rhs(indexR) += lhs_riC_i * ui +
+        // twoThirdRhoTke + lhs_riCSGRS_i * avgUi + avgTwoThirdRhoTke;
         rhs(indexL) -= lhs_riC_i * fluctUi + lhs_riCSGRS_i * avgUi;
         rhs(indexR) += lhs_riC_i * fluctUi + lhs_riCSGRS_i * avgUi;
       }
@@ -308,47 +310,49 @@ MomentumTAMSSSTDiffElemKernel<AlgTraits>::get_M43_constant(
   DoubleType D[AlgTraits::nDim_][AlgTraits::nDim_])
 {
 
-  // Coefficients for the polynomial 
-  double c[15] = {1.033749474513071,-0.154122686264488,-0.007737595743644, 
-                  0.177611732560139, 0.060868024017604, 0.162200630336440,
-                 -0.041086757724764,-0.027380130027626, 0.005521188430182, 
-                  0.049139605169403, 0.002926283060215, 0.002672790587853,
-	   	  0.000486437925728, 0.002136258066662, 0.005113058518679};
-  
+  // Coefficients for the polynomial
+  double c[15] = {1.033749474513071,  -0.154122686264488, -0.007737595743644,
+                  0.177611732560139,  0.060868024017604,  0.162200630336440,
+                  -0.041086757724764, -0.027380130027626, 0.005521188430182,
+                  0.049139605169403,  0.002926283060215,  0.002672790587853,
+                  0.000486437925728,  0.002136258066662,  0.005113058518679};
 
   if (AlgTraits::nDim_ != 3)
-     throw std::runtime_error("In MomentumTAMSSSTDiffElemKernel, requires 3D problem");
+    throw std::runtime_error(
+      "In MomentumTAMSSSTDiffElemKernel, requires 3D problem");
 
   // FIXME: Can we find a more elegant way to sort the three eigenvalues...
-  DoubleType smallestEV = stk::math::min(D[0][0],stk::math::min(D[1][1],D[2][2]));
-  DoubleType largestEV = stk::math::max(D[0][0],stk::math::max(D[1][1],D[2][2]));
-  DoubleType middleEV = stk::math::if_then_else(D[0][0] == smallestEV,
-			  stk::math::min(D[1][1], D[2][2]),
-			  stk::math::if_then_else(D[1][1] == smallestEV,
-				stk::math::min(D[0][0],D[2][2]),
-				stk::math::min(D[0][0],D[1][1])));
-  
-  // Scale the EVs
-  middleEV = middleEV/smallestEV;
-  largestEV = largestEV/smallestEV;
+  DoubleType smallestEV =
+    stk::math::min(D[0][0], stk::math::min(D[1][1], D[2][2]));
+  DoubleType largestEV =
+    stk::math::max(D[0][0], stk::math::max(D[1][1], D[2][2]));
+  DoubleType middleEV = stk::math::if_then_else(
+    D[0][0] == smallestEV, stk::math::min(D[1][1], D[2][2]),
+    stk::math::if_then_else(
+      D[1][1] == smallestEV, stk::math::min(D[0][0], D[2][2]),
+      stk::math::min(D[0][0], D[1][1])));
 
-  DoubleType r = stk::math::sqrt(stk::math::pow(middleEV,2) + stk::math::pow(largestEV,2));
-  DoubleType theta = stk::math::acos(largestEV/r);
+  // Scale the EVs
+  middleEV = middleEV / smallestEV;
+  largestEV = largestEV / smallestEV;
+
+  DoubleType r =
+    stk::math::sqrt(stk::math::pow(middleEV, 2) + stk::math::pow(largestEV, 2));
+  DoubleType theta = stk::math::acos(largestEV / r);
 
   DoubleType x = stk::math::log(r);
-  DoubleType y = stk::math::log(stk::math::sin(2*theta));
+  DoubleType y = stk::math::log(stk::math::sin(2 * theta));
 
-  DoubleType poly = c[0] + 
-                    c[1]*x + c[2]*y + 
-                    c[3]*x*x + c[4]*x*y + c[5]*y*y +
-		    c[6]*x*x*x + c[7]*x*x*y + c[8]*x*y*y + c[9]*y*y*y +
-   		    c[10]*x*x*x*x + c[11]*x*x*x*y + c[12]*x*x*y*y + c[13]*x*y*y*y + c[14]*y*y*y*y;
+  DoubleType poly =
+    c[0] + c[1] * x + c[2] * y + c[3] * x * x + c[4] * x * y + c[5] * y * y +
+    c[6] * x * x * x + c[7] * x * x * y + c[8] * x * y * y + c[9] * y * y * y +
+    c[10] * x * x * x * x + c[11] * x * x * x * y + c[12] * x * x * y * y +
+    c[13] * x * y * y * y + c[14] * y * y * y * y;
 
-  return poly*CMdeg_;
-
+  return poly * CMdeg_;
 }
 
-INSTANTIATE_KERNEL(MomentumTAMSSSTDiffElemKernel);
+INSTANTIATE_KERNEL(MomentumTAMSSSTDiffElemKernel)
 
 } // namespace nalu
 } // namespace sierra

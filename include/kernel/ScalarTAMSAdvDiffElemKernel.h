@@ -25,8 +25,8 @@ class ElemDataRequests;
 
 /** CVFEM scalar advection/diffusion kernel
  */
-template<typename AlgTraits>
-class ScalarTAMSAdvDiffElemKernel: public Kernel
+template <typename AlgTraits>
+class ScalarTAMSAdvDiffElemKernel : public Kernel
 {
 public:
   ScalarTAMSAdvDiffElemKernel(
@@ -50,10 +50,10 @@ public:
 private:
   ScalarTAMSAdvDiffElemKernel() = delete;
 
-  ScalarFieldType *scalarQ_{nullptr};
-  ScalarFieldType *diffFluxCoeff_{nullptr};
-  VectorFieldType *coordinates_{nullptr};
-  GenericFieldType *massFlowRate_{nullptr};
+  unsigned scalarQ_{stk::mesh::InvalidOrdinal};
+  unsigned diffFluxCoeff_{stk::mesh::InvalidOrdinal};
+  unsigned coordinates_{stk::mesh::InvalidOrdinal};
+  unsigned massFlowRate_{stk::mesh::InvalidOrdinal};
 
   /// Left right node indicators
   const int* lrscv_;
@@ -61,11 +61,13 @@ private:
   const bool shiftedGradOp_;
 
   /// Shape functions
-  AlignedViewType<DoubleType[AlgTraits::numScsIp_][AlgTraits::nodesPerElement_]> v_shape_function_ { "v_shape_func" };
-  AlignedViewType<DoubleType[AlgTraits::numScsIp_][AlgTraits::nodesPerElement_]> v_adv_shape_function_{"v_adv_shape_function"};
+  AlignedViewType<DoubleType[AlgTraits::numScsIp_][AlgTraits::nodesPerElement_]>
+    v_shape_function_{"v_shape_func"};
+  AlignedViewType<DoubleType[AlgTraits::numScsIp_][AlgTraits::nodesPerElement_]>
+    v_adv_shape_function_{"v_adv_shape_function"};
 };
 
-}  // nalu
-}  // sierra
+} // namespace nalu
+} // namespace sierra
 
 #endif /* SCALARTAMSADVDIFFELEMKERNEL_H */
