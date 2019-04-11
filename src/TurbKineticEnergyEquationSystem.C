@@ -371,6 +371,7 @@ TurbKineticEnergyEquationSystem::register_interior_algorithm(
         {
           theSrc = new TurbKineticEnergyChienKENodeSourceSuppAlg(realm_);
         }
+        break;
       case TAMS_SST: case TAMS_KE:
         {
            throw std::runtime_error("TAMS is only supported using the consolidated kernel approach");

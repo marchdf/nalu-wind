@@ -48,7 +48,8 @@ MomentumTAMSSSTDiffElemKernel<AlgTraits>::MomentumTAMSSSTDiffElemKernel(
   tkeNp1_ = get_field_ordinal(metaData, "turbulent_ke");
   sdrNp1_ = get_field_ordinal(metaData, "specific_dissipation_rate");
   alphaNp1_ = get_field_ordinal(metaData, "k_ratio");
-  Mij_ = get_field_ordinal(metaData, "metric_tensor");
+  Mij_ =
+    get_field_ordinal(metaData, "metric_tensor", stk::topology::ELEMENT_RANK);
 
   avgVelocity_ = get_field_ordinal(metaData, "average_velocity");
   avgDensity_ = get_field_ordinal(metaData, "average_density");

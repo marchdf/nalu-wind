@@ -549,6 +549,8 @@ public:
         stk::topology::NODE_RANK, "average_density")),
       avgResAdeq_(&meta_.declare_field<ScalarFieldType>(
         stk::topology::ELEMENT_RANK, "average_resolution_adequacy_parameter")),
+      avgTime_(&meta_.declare_field<ScalarFieldType>(
+        stk::topology::NODE_RANK, "average_time")),
       minDist_(&meta_.declare_field<ScalarFieldType>(
         stk::topology::NODE_RANK, "minimum_distance_to_wall")),
       Mij_(&meta_.declare_field<GenericFieldType>(
@@ -562,6 +564,7 @@ public:
     stk::mesh::put_field_on_mesh(*avgVelocity_, meta_.universal_part(), spatialDim_, nullptr);
     stk::mesh::put_field_on_mesh(*avgDensity_, meta_.universal_part(), 1, nullptr);
     stk::mesh::put_field_on_mesh(*avgResAdeq_, meta_.universal_part(), 1, nullptr);
+    stk::mesh::put_field_on_mesh(*avgTime_, meta_.universal_part(), 1, nullptr);
     stk::mesh::put_field_on_mesh(*minDist_, meta_.universal_part(), 1, nullptr);
     stk::mesh::put_field_on_mesh(*Mij_, meta_.universal_part(), spatialDim_*spatialDim_, nullptr);
   }
@@ -577,6 +580,7 @@ public:
     stk::mesh::field_fill(1.0, *density_);
     stk::mesh::field_fill(1.0, *avgDensity_);
     stk::mesh::field_fill(0.7, *avgResAdeq_);
+    stk::mesh::field_fill(1.0, *avgTime_);
     stk::mesh::field_fill(10.0, *minDist_);
     stk::mesh::field_fill(1.0, *Mij_);
     unit_test_kernel_utils::tke_test_function(bulk_, *coordinates_, *tke_);
@@ -592,6 +596,7 @@ public:
   VectorFieldType* avgVelocity_{nullptr};
   ScalarFieldType* avgDensity_{nullptr};
   ScalarFieldType* avgResAdeq_{nullptr};
+  ScalarFieldType* avgTime_{nullptr};
   ScalarFieldType* minDist_{nullptr};
   GenericFieldType* Mij_{nullptr};
 };

@@ -49,13 +49,15 @@ MomentumTAMSSSTForcingElemKernel<AlgTraits>::MomentumTAMSSSTForcingElemKernel(
 
   sdrNp1_ = get_field_ordinal(metaData, "specific_dissipation_rate");
   alphaNp1_ = get_field_ordinal(metaData, "k_ratio");
-  Mij_ = get_field_ordinal(metaData, "metric_tensor");
+  Mij_ =
+    get_field_ordinal(metaData, "metric_tensor", stk::topology::ELEMENT_RANK);
 
   avgVelocity_ = get_field_ordinal(metaData, "average_velocity");
   avgDensity_ = get_field_ordinal(metaData, "average_density");
 
-  avgResAdeq_ =
-    get_field_ordinal(metaData, "average_resolution_adequacy_parameter");
+  avgResAdeq_ = get_field_ordinal(
+    metaData, "average_resolution_adequacy_parameter",
+    stk::topology::ELEMENT_RANK);
   coordinates_ = get_field_ordinal(metaData, solnOpts.get_coordinates_name());
 
   minDist_ = get_field_ordinal(metaData, "minimum_distance_to_wall");
