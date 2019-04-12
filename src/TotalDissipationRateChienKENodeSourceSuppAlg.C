@@ -116,7 +116,7 @@ TotalDissipationRateChienKENodeSourceSuppAlg::node_execute(
   const double Le = -LeFac * tdr;
 
   rhs[0] += (Pe - De + Le)*dualVolume;
-  lhs[0] += (-PeFac + 2.0*DeFac + LeFac)*dualVolume;
+  lhs[0] += (2.0*DeFac + LeFac)*dualVolume;
 }
 
 } // namespace nalu
