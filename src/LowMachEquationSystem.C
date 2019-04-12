@@ -1351,11 +1351,11 @@ MomentumEquationSystem::register_interior_algorithm(
        realm_.bulk_data(), *realm_.solutionOptions_, velocity_, dataPreReqs, true);
 
     kb.build_topo_kernel_if_requested<MomentumBodyForceSrcElemKernel>
-      ("const_body_force",
+      ("body_force",
        realm_.bulk_data(), *realm_.solutionOptions_, dataPreReqs);
 
     kb.build_topo_kernel_if_requested<MomentumBodyForceSrcElemKernel>
-      ("lumped_const_body_force",
+      ("lumped_body_force",
        realm_.bulk_data(), *realm_.solutionOptions_, dataPreReqs);
 
     kb.build_sgl_kernel_if_requested<MomentumAdvDiffHOElemKernel>
