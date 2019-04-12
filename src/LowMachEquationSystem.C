@@ -124,7 +124,7 @@
 #include <kernel/MomentumBuoyancyBoussinesqSrcElemKernel.h>
 #include <kernel/MomentumBuoyancySrcElemKernel.h>
 #include <kernel/MomentumCoriolisSrcElemKernel.h>
-#include <kernel/MomentumConstBodyForceSrcElemKernel.h>
+#include <kernel/MomentumBodyForceSrcElemKernel.h>
 #include <kernel/MomentumMassElemKernel.h>
 #include <kernel/MomentumUpwAdvDiffElemKernel.h>
 
@@ -1350,11 +1350,11 @@ MomentumEquationSystem::register_interior_algorithm(
       ("lumped_EarthCoriolis",
        realm_.bulk_data(), *realm_.solutionOptions_, velocity_, dataPreReqs, true);
 
-    kb.build_topo_kernel_if_requested<MomentumConstBodyForceSrcElemKernel>
+    kb.build_topo_kernel_if_requested<MomentumBodyForceSrcElemKernel>
       ("const_body_force",
        realm_.bulk_data(), *realm_.solutionOptions_, dataPreReqs);
 
-    kb.build_topo_kernel_if_requested<MomentumConstBodyForceSrcElemKernel>
+    kb.build_topo_kernel_if_requested<MomentumBodyForceSrcElemKernel>
       ("lumped_const_body_force",
        realm_.bulk_data(), *realm_.solutionOptions_, dataPreReqs);
 

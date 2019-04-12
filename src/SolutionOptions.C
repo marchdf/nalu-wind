@@ -336,11 +336,11 @@ SolutionOptions::load(const YAML::Node & y_node)
               gravity_[i] = y_user_constants["gravity"][i].as<double>() ;
             }
           }
-          if (expect_sequence( y_user_constants, "constBodyForce", optional) ) {
-            const int constBodyForceSize = y_user_constants["constBodyForce"].size();
-            constBodyForce_.resize(constBodyForceSize);
-            for (int i = 0; i < constBodyForceSize; ++i ) {
-              constBodyForce_[i] = y_user_constants["constBodyForce"][i].as<double>() ;
+          if (expect_sequence( y_user_constants, "body_force", optional) ) {
+            const int bodyForceSize = y_user_constants["body_force"].size();
+            bodyForce_.resize(bodyForceSize);
+            for (int i = 0; i < bodyForceSize; ++i ) {
+              bodyForce_[i] = y_user_constants["body_force"][i].as<double>() ;
             }
           }
           if (expect_sequence( y_user_constants, "east_vector", optional) ) {
@@ -744,12 +744,12 @@ SolutionOptions::get_gravity_vector(const unsigned nDim) const
 }
 
 std::vector<double>
-SolutionOptions::get_constBodyForce_vector(const unsigned nDim) const
+SolutionOptions::get_bodyForce_vector(const unsigned nDim) const
 {
-  if ( nDim != constBodyForce_.size() )
-    throw std::runtime_error("SolutionOptions::get_constBodyForce_vector():Error Expected size does not equaly nDim");
+  if ( nDim != bodyForce_.size() )
+    throw std::runtime_error("SolutionOptions::get_bodyForce_vector():Error Expected size does not equaly nDim");
   else
-    return constBodyForce_;
+    return bodyForce_;
 }
 //--------------------------------------------------------------------------
 //-------- get_turb_model_constant() ------------------------------------------

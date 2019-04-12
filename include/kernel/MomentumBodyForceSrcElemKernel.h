@@ -5,8 +5,8 @@
 /*  directory structure                                                   */
 /*------------------------------------------------------------------------*/
 
-#ifndef MOMENTUMCONSTBODYFORCESRCELEMKERNEL_H
-#define MOMENTUMCONSTBODYFORCESRCELEMKERNEL_H
+#ifndef MOMENTUMBODYFORCESRCELEMKERNEL_H
+#define MOMENTUMBODYFORCESRCELEMKERNEL_H
 
 #include "kernel/Kernel.h"
 #include "FieldTypeDef.h"
@@ -25,16 +25,14 @@ class ElemDataRequests;
 
 /** CMM body force term for momentum equation (velocity DOF)
  */
-template<typename AlgTraits>
-class MomentumConstBodyForceSrcElemKernel: public Kernel
+template <typename AlgTraits>
+class MomentumBodyForceSrcElemKernel : public Kernel
 {
 public:
-  MomentumConstBodyForceSrcElemKernel(
-    const stk::mesh::BulkData&,
-    const SolutionOptions&,
-    ElemDataRequests&);
+  MomentumBodyForceSrcElemKernel(
+    const stk::mesh::BulkData&, const SolutionOptions&, ElemDataRequests&);
 
-  virtual ~MomentumConstBodyForceSrcElemKernel();
+  virtual ~MomentumBodyForceSrcElemKernel();
 
   /** Execute the kernel within a Kokkos loop and populate the LHS and RHS for
    *  the linear solve
@@ -46,19 +44,20 @@ public:
     ScratchViews<DoubleType>&);
 
 private:
-  MomentumConstBodyForceSrcElemKernel() = delete;
+  MomentumBodyForceSrcElemKernel() = delete;
 
-  ScalarFieldType *densityNp1_{nullptr};
+  unsigned densityNp1_{stk::mesh::InvalidOrdinal};
 
-  AlignedViewType<DoubleType[AlgTraits::nDim_]> constBodyForce_{"v_bodyForce"};
+  AlignedViewType<DoubleType[AlgTraits::nDim_]> bodyForce_{"v_bodyForce"};
 
   const int* ipNodeMap_;
 
   // scratch space
-  AlignedViewType<DoubleType[AlgTraits::numScvIp_][AlgTraits::nodesPerElement_]> v_shape_function_ { "v_shape_func" };
+  AlignedViewType<DoubleType[AlgTraits::numScvIp_][AlgTraits::nodesPerElement_]>
+    v_shape_function_{"v_shape_func"};
 };
 
-}  // nalu
-}  // sierra
+} // namespace nalu
+} // namespace sierra
 
-#endif /* MOMENTUMBUOYANCYSRCELEMKERNEL_H */
+#endif /* MOMENTUMBODYFORCESRCELEMKERNEL_H */
