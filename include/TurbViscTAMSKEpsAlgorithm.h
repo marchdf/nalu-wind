@@ -6,8 +6,8 @@
 /*------------------------------------------------------------------------*/
 
 
-#ifndef TurbViscTAMSKEAlgorithm_h
-#define TurbViscTAMSKEAlgorithm_h
+#ifndef TurbViscTAMSKEPSAlgorithm_h
+#define TurbViscTAMSKEPSAlgorithm_h
 
 #include<Algorithm.h>
 
@@ -18,14 +18,14 @@ namespace nalu{
 
 class Realm;
 
-class TurbViscTAMSKEAlgorithm : public Algorithm
+class TurbViscTAMSKEpsAlgorithm : public Algorithm
 {
 public:
   
-  TurbViscTAMSKEAlgorithm(
+  TurbViscTAMSKEpsAlgorithm(
     Realm &realm,
     stk::mesh::Part *part);
-  virtual ~TurbViscTAMSKEAlgorithm() {}
+  virtual ~TurbViscTAMSKEpsAlgorithm() {}
   virtual void execute();
 
   const double cMu_;

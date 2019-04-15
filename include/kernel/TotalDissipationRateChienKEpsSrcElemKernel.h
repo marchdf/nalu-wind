@@ -5,8 +5,8 @@
 /*  directory structure                                                   */
 /*------------------------------------------------------------------------*/
 
-#ifndef TURBKINETICENERGYTAMSKESRCELEMKERNEL_H
-#define TURBKINETICENERGYTAMSKESRCELEMKERNEL_H
+#ifndef TOTALDISSIPATIONRATECHIENKEPSSRCELEMKERNEL_H
+#define TOTALDISSIPATIONRATECHIENKEPSSRCELEMKERNEL_H
 
 #include "Kernel.h"
 #include "FieldTypeDef.h"
@@ -23,16 +23,16 @@ class MasterElement;
 class ElemDataRequests;
 
 template <typename AlgTraits>
-class TurbKineticEnergyTAMSKESrcElemKernel : public Kernel
+class TotalDissipationRateChienKEpsSrcElemKernel : public Kernel
 {
 public:
-  TurbKineticEnergyTAMSKESrcElemKernel(
+  TotalDissipationRateChienKEpsSrcElemKernel(
     const stk::mesh::BulkData&,
     const SolutionOptions&,
     ElemDataRequests&,
     const bool);
 
-  virtual ~TurbKineticEnergyTAMSKESrcElemKernel();
+  virtual ~TotalDissipationRateChienKEpsSrcElemKernel();
 
   /** Execute the kernel within a Kokkos loop and populate the LHS and RHS for
    *  the linear solve
@@ -44,24 +44,23 @@ public:
     ScratchViews<DoubleType>&);
 
 private:
-  TurbKineticEnergyTAMSKESrcElemKernel() = delete;
+  TotalDissipationRateChienKEpsSrcElemKernel() = delete;
 
   unsigned tkeNp1_{stk::mesh::InvalidOrdinal};
   unsigned tdrNp1_{stk::mesh::InvalidOrdinal};
   unsigned densityNp1_{stk::mesh::InvalidOrdinal};
   unsigned velocityNp1_{stk::mesh::InvalidOrdinal};
-  unsigned resStressNp1_{stk::mesh::InvalidOrdinal};
   unsigned visc_{stk::mesh::InvalidOrdinal};
   unsigned tvisc_{stk::mesh::InvalidOrdinal};
-  unsigned alpha_{stk::mesh::InvalidOrdinal};
+  unsigned dplus_{stk::mesh::InvalidOrdinal};
   unsigned minD_{stk::mesh::InvalidOrdinal};
-  unsigned prod_{stk::mesh::InvalidOrdinal};
   unsigned coordinates_{stk::mesh::InvalidOrdinal};
 
   const bool lumpedMass_;
   const bool shiftedGradOp_;
-  const double betaStar_;
-  double tkeProdLimitRatio_{0.0};
+  const double cEpsOne_;
+  const double cEpsTwo_;
+  const double fOne_;
 
   const int* ipNodeMap_;
 
@@ -73,4 +72,4 @@ private:
 } // namespace nalu
 } // namespace sierra
 
-#endif /* TURBKINETICENERGYTAMSKESRCELEMKERNEL_H */
+#endif /* TOTALDISSIPATIONRATECHIENKEPSSRCELEMKERNEL_H */

@@ -6,8 +6,8 @@
 /*------------------------------------------------------------------------*/
 
 
-#ifndef TurbViscChienKEAlgorithm_h
-#define TurbViscChienKEAlgorithm_h
+#ifndef TurbViscChienKEpsAlgorithm_h
+#define TurbViscChienKEpsAlgorithm_h
 
 #include<Algorithm.h>
 
@@ -18,14 +18,14 @@ namespace nalu{
 
 class Realm;
 
-class TurbViscChienKEAlgorithm : public Algorithm
+class TurbViscChienKEpsAlgorithm : public Algorithm
 {
 public:
   
-  TurbViscChienKEAlgorithm(
+  TurbViscChienKEpsAlgorithm(
     Realm &realm,
     stk::mesh::Part *part);
-  virtual ~TurbViscChienKEAlgorithm() {}
+  virtual ~TurbViscChienKEpsAlgorithm() {}
   virtual void execute();
 
   const double cMu_;

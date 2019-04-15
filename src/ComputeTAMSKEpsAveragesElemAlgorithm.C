@@ -7,7 +7,7 @@
 
 // nalu
 #include <Algorithm.h>
-#include <ComputeTAMSKEAveragesElemAlgorithm.h>
+#include <ComputeTAMSKEpsAveragesElemAlgorithm.h>
 
 #include <FieldTypeDef.h>
 #include <Realm.h>
@@ -27,12 +27,12 @@ namespace nalu {
 //==========================================================================
 // Class Definition
 //==========================================================================
-// ComputeTAMSKEAveragesElemAlgorithm - Metric Tensor
+// ComputeTAMSKEpsAveragesElemAlgorithm - Metric Tensor
 //==========================================================================
 //--------------------------------------------------------------------------
 //-------- constructor -----------------------------------------------------
 //--------------------------------------------------------------------------
-ComputeTAMSKEAveragesElemAlgorithm::ComputeTAMSKEAveragesElemAlgorithm(
+ComputeTAMSKEpsAveragesElemAlgorithm::ComputeTAMSKEpsAveragesElemAlgorithm(
     Realm &realm, stk::mesh::Part *part)
     : Algorithm(realm, part),
     betaStar_(realm.get_turb_model_constant(TM_betaStar)),
@@ -71,7 +71,7 @@ ComputeTAMSKEAveragesElemAlgorithm::ComputeTAMSKEAveragesElemAlgorithm(
 //--------------------------------------------------------------------------
 //-------- execute ---------------------------------------------------------
 //--------------------------------------------------------------------------
-void ComputeTAMSKEAveragesElemAlgorithm::execute() {
+void ComputeTAMSKEpsAveragesElemAlgorithm::execute() {
 
   stk::mesh::MetaData &meta_data = realm_.meta_data();
 

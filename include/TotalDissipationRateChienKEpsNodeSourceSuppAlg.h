@@ -6,8 +6,8 @@
 /*------------------------------------------------------------------------*/
 
 
-#ifndef TurbKineticEnergyChienKENodeSourceSuppAlg_h
-#define TurbKineticEnergyChienKENodeSourceSuppAlg_h
+#ifndef TotalDissipationRateChienKEpsNodeSourceSuppAlg_h
+#define TotalDissipationRateChienKEpsNodeSourceSuppAlg_h
 
 #include <SupplementalAlgorithm.h>
 #include <FieldTypeDef.h>
@@ -19,13 +19,13 @@ namespace nalu{
 
 class Realm;
 
-class TurbKineticEnergyChienKENodeSourceSuppAlg : public SupplementalAlgorithm
+class TotalDissipationRateChienKEpsNodeSourceSuppAlg : public SupplementalAlgorithm
 {
 public:
-  TurbKineticEnergyChienKENodeSourceSuppAlg(
+  TotalDissipationRateChienKEpsNodeSourceSuppAlg(
     Realm &realm);
 
-  virtual ~TurbKineticEnergyChienKENodeSourceSuppAlg() {}
+  virtual ~TotalDissipationRateChienKEpsNodeSourceSuppAlg() {}
 
   virtual void setup();
 
@@ -34,14 +34,17 @@ public:
     double *rhs,
     stk::mesh::Entity node);
   
-  ScalarFieldType *tkeNp1_;
+  const double cEpsOne_, cEpsTwo_, fOne_;
   ScalarFieldType *tdrNp1_;
+  ScalarFieldType *tkeNp1_;
   ScalarFieldType *densityNp1_;
+  ScalarFieldType *dplus_;
   ScalarFieldType *visc_;
   ScalarFieldType *tvisc_;
   GenericFieldType *dudx_;
   ScalarFieldType *minD_;
   ScalarFieldType *dualNodalVolume_;
+  double tkeProdLimitRatio_;
   int nDim_;
   
 };

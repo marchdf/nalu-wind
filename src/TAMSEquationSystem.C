@@ -22,8 +22,8 @@
 #include <ConstantAuxFunction.h>
 #include <CopyFieldAlgorithm.h>
 #include <ComputeMetricTensorElemAlgorithm.h>
-#include <ComputeTAMSKEAveragesElemAlgorithm.h>
-#include <ComputeTAMSKEResAdequacyElemAlgorithm.h>
+#include <ComputeTAMSKEpsAveragesElemAlgorithm.h>
+#include <ComputeTAMSKEpsResAdequacyElemAlgorithm.h>
 #include <ComputeTAMSKratioElemAlgorithm.h>
 #include <ComputeTAMSSSTAveragesElemAlgorithm.h>
 #include <ComputeTAMSSSTResAdequacyElemAlgorithm.h>
@@ -139,8 +139,8 @@ TAMSEquationSystem::TAMSEquationSystem(
   // push back EQ to manager
   realm_.push_equation_to_systems(this);
 
-  if ( turbulenceModel_ != TAMS_SST && turbulenceModel_ != TAMS_KE ) {
-    throw std::runtime_error("User has requested TAMSEqs, however, turbulence model has not been set to tams_sst or tams_ke, the only ones supported by this equation system currently.");
+  if ( turbulenceModel_ != TAMS_SST && turbulenceModel_ != TAMS_KEPS ) {
+    throw std::runtime_error("User has requested TAMSEqs, however, turbulence model has not been set to tams_sst or tams_keps, the only ones supported by this equation system currently.");
   }
 }
 
@@ -284,8 +284,8 @@ TAMSEquationSystem::register_interior_algorithm(
       case TAMS_SST:
         theAlg = new ComputeTAMSSSTResAdequacyElemAlgorithm(realm_, part);
         break;
-      case TAMS_KE:
-        theAlg = new ComputeTAMSKEResAdequacyElemAlgorithm(realm_, part);
+      case TAMS_KEPS:
+        theAlg = new ComputeTAMSKEpsResAdequacyElemAlgorithm(realm_, part);
         break;
       default:
         throw std::runtime_error("TAMSEquationSystem: non-supported turb model");
@@ -326,8 +326,8 @@ TAMSEquationSystem::register_interior_algorithm(
       case TAMS_SST:
         theAlg = new ComputeTAMSSSTAveragesElemAlgorithm(realm_, part);
         break;
-      case TAMS_KE:
-        theAlg = new ComputeTAMSKEAveragesElemAlgorithm(realm_, part);
+      case TAMS_KEPS:
+        theAlg = new ComputeTAMSKEpsAveragesElemAlgorithm(realm_, part);
         break;
       default:
         throw std::runtime_error("TAMSEquationSystem: non-supported turb model");

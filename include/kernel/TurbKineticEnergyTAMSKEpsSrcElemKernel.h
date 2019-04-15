@@ -5,8 +5,8 @@
 /*  directory structure                                                   */
 /*------------------------------------------------------------------------*/
 
-#ifndef TURBKINETICENERGYCHIENKESRCELEMKERNEL_H
-#define TURBKINETICENERGYCHIENKESRCELEMKERNEL_H
+#ifndef TURBKINETICENERGYTAMSKEPSSRCELEMKERNEL_H
+#define TURBKINETICENERGYTAMSKEPSSRCELEMKERNEL_H
 
 #include "Kernel.h"
 #include "FieldTypeDef.h"
@@ -23,16 +23,16 @@ class MasterElement;
 class ElemDataRequests;
 
 template <typename AlgTraits>
-class TurbKineticEnergyChienKESrcElemKernel : public Kernel
+class TurbKineticEnergyTAMSKEpsSrcElemKernel : public Kernel
 {
 public:
-  TurbKineticEnergyChienKESrcElemKernel(
+  TurbKineticEnergyTAMSKEpsSrcElemKernel(
     const stk::mesh::BulkData&,
     const SolutionOptions&,
     ElemDataRequests&,
     const bool);
 
-  virtual ~TurbKineticEnergyChienKESrcElemKernel();
+  virtual ~TurbKineticEnergyTAMSKEpsSrcElemKernel();
 
   /** Execute the kernel within a Kokkos loop and populate the LHS and RHS for
    *  the linear solve
@@ -44,19 +44,24 @@ public:
     ScratchViews<DoubleType>&);
 
 private:
-  TurbKineticEnergyChienKESrcElemKernel() = delete;
+  TurbKineticEnergyTAMSKEpsSrcElemKernel() = delete;
 
   unsigned tkeNp1_{stk::mesh::InvalidOrdinal};
   unsigned tdrNp1_{stk::mesh::InvalidOrdinal};
   unsigned densityNp1_{stk::mesh::InvalidOrdinal};
   unsigned velocityNp1_{stk::mesh::InvalidOrdinal};
+  unsigned resStressNp1_{stk::mesh::InvalidOrdinal};
   unsigned visc_{stk::mesh::InvalidOrdinal};
   unsigned tvisc_{stk::mesh::InvalidOrdinal};
+  unsigned alpha_{stk::mesh::InvalidOrdinal};
   unsigned minD_{stk::mesh::InvalidOrdinal};
+  unsigned prod_{stk::mesh::InvalidOrdinal};
   unsigned coordinates_{stk::mesh::InvalidOrdinal};
 
   const bool lumpedMass_;
   const bool shiftedGradOp_;
+  const double betaStar_;
+  double tkeProdLimitRatio_{0.0};
 
   const int* ipNodeMap_;
 
@@ -68,4 +73,4 @@ private:
 } // namespace nalu
 } // namespace sierra
 
-#endif /* TURBKINETICENERGYCHIENKESRCELEMKERNEL_H */
+#endif /* TURBKINETICENERGYTAMSKEPSSRCELEMKERNEL_H */

@@ -5,7 +5,7 @@
 /*  directory structure                                                   */
 /*------------------------------------------------------------------------*/
 
-#include "kernel/MomentumTAMSKEForcingElemKernel.h"
+#include "kernel/MomentumTAMSKEpsForcingElemKernel.h"
 #include "AlgTraits.h"
 #include "EigenDecomposition.h"
 #include "master_element/MasterElement.h"
@@ -28,7 +28,7 @@ namespace sierra {
 namespace nalu {
 
 template <typename AlgTraits>
-MomentumTAMSKEForcingElemKernel<AlgTraits>::MomentumTAMSKEForcingElemKernel(
+MomentumTAMSKEpsForcingElemKernel<AlgTraits>::MomentumTAMSKEpsForcingElemKernel(
   const stk::mesh::BulkData& bulkData,
   const SolutionOptions& solnOpts,
   ScalarFieldType* viscosity,
@@ -97,14 +97,14 @@ MomentumTAMSKEForcingElemKernel<AlgTraits>::MomentumTAMSKEForcingElemKernel(
 }
 
 template <typename AlgTraits>
-MomentumTAMSKEForcingElemKernel<AlgTraits>::~MomentumTAMSKEForcingElemKernel()
+MomentumTAMSKEpsForcingElemKernel<AlgTraits>::~MomentumTAMSKEpsForcingElemKernel()
 {
   tmpFile.close();
 }
 
 template <typename AlgTraits>
 void
-MomentumTAMSKEForcingElemKernel<AlgTraits>::setup(
+MomentumTAMSKEpsForcingElemKernel<AlgTraits>::setup(
   const TimeIntegrator& timeIntegrator)
 {
   // FIXME: Hack to match CDP time
@@ -114,7 +114,7 @@ MomentumTAMSKEForcingElemKernel<AlgTraits>::setup(
 
 template <typename AlgTraits>
 void
-MomentumTAMSKEForcingElemKernel<AlgTraits>::execute(
+MomentumTAMSKEpsForcingElemKernel<AlgTraits>::execute(
   SharedMemView<DoubleType**>& lhs,
   SharedMemView<DoubleType*>& rhs,
   ScratchViews<DoubleType>& scratchViews)
@@ -374,7 +374,7 @@ MomentumTAMSKEForcingElemKernel<AlgTraits>::execute(
   }
 }
 
-INSTANTIATE_KERNEL(MomentumTAMSKEForcingElemKernel)
+INSTANTIATE_KERNEL(MomentumTAMSKEpsForcingElemKernel)
 
 } // namespace nalu
 } // namespace sierra

@@ -5,8 +5,8 @@
 /*  directory structure                                                   */
 /*------------------------------------------------------------------------*/
 
-#ifndef MOMENTUMTAMSKEFORCINGELEMKERNEL_H
-#define MOMENTUMTAMSKEFORCINGELEMKERNEL_H
+#ifndef MOMENTUMTAMSKEPSFORCINGELEMKERNEL_H
+#define MOMENTUMTAMSKEPSFORCINGELEMKERNEL_H
 
 #include "kernel/Kernel.h"
 #include "FieldTypeDef.h"
@@ -28,17 +28,17 @@ class ElemDataRequests;
  *
  */
 template <typename AlgTraits>
-class MomentumTAMSKEForcingElemKernel : public Kernel
+class MomentumTAMSKEpsForcingElemKernel : public Kernel
 {
 public:
-  MomentumTAMSKEForcingElemKernel(
+  MomentumTAMSKEpsForcingElemKernel(
     const stk::mesh::BulkData&,
     const SolutionOptions&,
     ScalarFieldType*,
     ScalarFieldType*,
     ElemDataRequests&);
 
-  virtual ~MomentumTAMSKEForcingElemKernel();
+  virtual ~MomentumTAMSKEpsForcingElemKernel();
 
   // Perform pre-timestep work for the computational kernel
   virtual void setup(const TimeIntegrator&);
@@ -57,7 +57,7 @@ private:
 
   std::ofstream tmpFile;
 
-  MomentumTAMSKEForcingElemKernel() = delete;
+  MomentumTAMSKEpsForcingElemKernel() = delete;
 
   unsigned velocityNp1_{stk::mesh::InvalidOrdinal};
   unsigned densityNp1_{stk::mesh::InvalidOrdinal};
@@ -88,4 +88,4 @@ private:
 } // namespace nalu
 } // namespace sierra
 
-#endif /* MOMENTUMTAMSKEFORCINGELEMKERNEL_H */
+#endif /* MOMENTUMTAMSKEPSFORCINGELEMKERNEL_H */

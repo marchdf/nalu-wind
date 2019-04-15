@@ -76,8 +76,8 @@ add_sources(GlobalSourceList
    ComputeMetricTensorElemAlgorithm.C
    ComputeSSTMaxLengthScaleElemAlgorithm.C
    ComputeTAMSKratioElemAlgorithm.C
-   ComputeTAMSKEAveragesElemAlgorithm.C
-   ComputeTAMSKEResAdequacyElemAlgorithm.C
+   ComputeTAMSKEpsAveragesElemAlgorithm.C
+   ComputeTAMSKEpsResAdequacyElemAlgorithm.C
    ComputeTAMSSSTAveragesElemAlgorithm.C
    ComputeTAMSSSTResAdequacyElemAlgorithm.C
    ComputeTurbKineticEnergyWallFunctionAlgorithm.C
@@ -172,20 +172,20 @@ add_sources(GlobalSourceList
    SurfaceForceAndMomentWallFunctionAlgorithm.C
    TAMSEquationSystem.C
    TimeIntegrator.C
-   TotalDissipationRateChienKENodeSourceSuppAlg.C
+   TotalDissipationRateChienKEpsNodeSourceSuppAlg.C
    TotalDissipationRateEquationSystem.C
    TpetraLinearSystem.C
-   TurbKineticEnergyChienKENodeSourceSuppAlg.C
+   TurbKineticEnergyChienKEpsNodeSourceSuppAlg.C
    TurbKineticEnergyEquationSystem.C
    TurbKineticEnergyKsgsBuoyantElemSuppAlg.C
    TurbKineticEnergyKsgsNodeSourceSuppAlg.C
    TurbKineticEnergyRodiNodeSourceSuppAlg.C
    TurbKineticEnergySSTDESNodeSourceSuppAlg.C
    TurbKineticEnergySSTNodeSourceSuppAlg.C
-   TurbViscChienKEAlgorithm.C
+   TurbViscChienKEpsAlgorithm.C
    TurbViscKsgsAlgorithm.C
    TurbViscSSTAlgorithm.C
-   TurbViscTAMSKEAlgorithm.C
+   TurbViscTAMSKEpsAlgorithm.C
    TurbViscTAMSSSTAlgorithm.C
    TurbViscSmagorinskyAlgorithm.C
    TurbViscWaleAlgorithm.C

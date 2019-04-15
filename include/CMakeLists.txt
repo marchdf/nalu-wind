@@ -80,8 +80,8 @@ add_sources(GlobalHeaderList
    ComputeMdotNonConformalAlgorithm.h
    ComputeMetricTensorElemAlgorithm.h
    ComputeSSTMaxLengthScaleElemAlgorithm.h
-   ComputeTAMSKEAveragesElemAlgorithm.h
-   ComputeTAMSKEResAdequacyElemAlgorithm.h
+   ComputeTAMSKEpsAveragesElemAlgorithm.h
+   ComputeTAMSKEpsResAdequacyElemAlgorithm.h
    ComputeTAMSKratioElemAlgorithm.h
    ComputeTAMSSSTAveragesElemAlgorithm.h
    ComputeTAMSSSTResAdequacyElemAlgorithm.h
@@ -193,19 +193,19 @@ add_sources(GlobalHeaderList
    SurfaceForceAndMomentWallFunctionAlgorithm.h
    TAMSEquationSystem.h
    TimeIntegrator.h
-   TotalDissipationRateChienKENodeSourceSuppAlg.h
+   TotalDissipationRateChienKEpsNodeSourceSuppAlg.h
    TpetraLinearSystem.h
-   TurbKineticEnergyChienKENodeSourceSuppAlg.h
+   TurbKineticEnergyChienKEpsNodeSourceSuppAlg.h
    TurbKineticEnergyEquationSystem.h
    TurbKineticEnergyKsgsBuoyantElemSuppAlg.h
    TurbKineticEnergyKsgsNodeSourceSuppAlg.h
    TurbKineticEnergyRodiNodeSourceSuppAlg.h
    TurbKineticEnergySSTDESNodeSourceSuppAlg.h
    TurbKineticEnergySSTNodeSourceSuppAlg.h
-   TurbViscChienKEAlgorithm.h
+   TurbViscChienKEpsAlgorithm.h
    TurbViscKsgsAlgorithm.h
    TurbViscSSTAlgorithm.h
-   TurbViscTAMSKEAlgorithm.h
+   TurbViscTAMSKEpsAlgorithm.h
    TurbViscTAMSSSTAlgorithm.h
    TurbViscSmagorinskyAlgorithm.h
    TurbViscWaleAlgorithm.h

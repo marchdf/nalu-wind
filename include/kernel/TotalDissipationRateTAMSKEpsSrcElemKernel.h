@@ -5,8 +5,8 @@
 /*  directory structure                                                   */
 /*------------------------------------------------------------------------*/
 
-#ifndef TOTALDISSIPATIONRATECHIENKESRCELEMKERNEL_H
-#define TOTALDISSIPATIONRATECHIENKESRCELEMKERNEL_H
+#ifndef TOTALDISSIPATIONRATETAMSKEPSSRCELEMKERNEL_H
+#define TOTALDISSIPATIONRATETAMSKEPSSRCELEMKERNEL_H
 
 #include "Kernel.h"
 #include "FieldTypeDef.h"
@@ -23,16 +23,16 @@ class MasterElement;
 class ElemDataRequests;
 
 template <typename AlgTraits>
-class TotalDissipationRateChienKESrcElemKernel : public Kernel
+class TotalDissipationRateTAMSKEpsSrcElemKernel : public Kernel
 {
 public:
-  TotalDissipationRateChienKESrcElemKernel(
+  TotalDissipationRateTAMSKEpsSrcElemKernel(
     const stk::mesh::BulkData&,
     const SolutionOptions&,
     ElemDataRequests&,
     const bool);
 
-  virtual ~TotalDissipationRateChienKESrcElemKernel();
+  virtual ~TotalDissipationRateTAMSKEpsSrcElemKernel();
 
   /** Execute the kernel within a Kokkos loop and populate the LHS and RHS for
    *  the linear solve
@@ -44,16 +44,19 @@ public:
     ScratchViews<DoubleType>&);
 
 private:
-  TotalDissipationRateChienKESrcElemKernel() = delete;
+  TotalDissipationRateTAMSKEpsSrcElemKernel() = delete;
 
   unsigned tkeNp1_{stk::mesh::InvalidOrdinal};
   unsigned tdrNp1_{stk::mesh::InvalidOrdinal};
   unsigned densityNp1_{stk::mesh::InvalidOrdinal};
   unsigned velocityNp1_{stk::mesh::InvalidOrdinal};
+  unsigned resStressNp1_{stk::mesh::InvalidOrdinal};
   unsigned visc_{stk::mesh::InvalidOrdinal};
   unsigned tvisc_{stk::mesh::InvalidOrdinal};
+  unsigned alpha_{stk::mesh::InvalidOrdinal};
   unsigned dplus_{stk::mesh::InvalidOrdinal};
   unsigned minD_{stk::mesh::InvalidOrdinal};
+  unsigned prod_{stk::mesh::InvalidOrdinal};
   unsigned coordinates_{stk::mesh::InvalidOrdinal};
 
   const bool lumpedMass_;
@@ -72,4 +75,4 @@ private:
 } // namespace nalu
 } // namespace sierra
 
-#endif /* TOTALDISSIPATIONRATECHIENKESRCELEMKERNEL_H */
+#endif /* TOTALDISSIPATIONRATETAMSKEPSSRCELEMKERNEL_H */

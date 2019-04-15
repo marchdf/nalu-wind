@@ -5,8 +5,8 @@
 /*  directory structure                                                   */
 /*------------------------------------------------------------------------*/
 
-#ifndef TOTALDISSIPATIONRATETAMSKESRCELEMKERNEL_H
-#define TOTALDISSIPATIONRATETAMSKESRCELEMKERNEL_H
+#ifndef TURBKINETICENERGYCHIENKEPSSRCELEMKERNEL_H
+#define TURBKINETICENERGYCHIENKEPSSRCELEMKERNEL_H
 
 #include "Kernel.h"
 #include "FieldTypeDef.h"
@@ -23,16 +23,16 @@ class MasterElement;
 class ElemDataRequests;
 
 template <typename AlgTraits>
-class TotalDissipationRateTAMSKESrcElemKernel : public Kernel
+class TurbKineticEnergyChienKEpsSrcElemKernel : public Kernel
 {
 public:
-  TotalDissipationRateTAMSKESrcElemKernel(
+  TurbKineticEnergyChienKEpsSrcElemKernel(
     const stk::mesh::BulkData&,
     const SolutionOptions&,
     ElemDataRequests&,
     const bool);
 
-  virtual ~TotalDissipationRateTAMSKESrcElemKernel();
+  virtual ~TurbKineticEnergyChienKEpsSrcElemKernel();
 
   /** Execute the kernel within a Kokkos loop and populate the LHS and RHS for
    *  the linear solve
@@ -44,26 +44,19 @@ public:
     ScratchViews<DoubleType>&);
 
 private:
-  TotalDissipationRateTAMSKESrcElemKernel() = delete;
+  TurbKineticEnergyChienKEpsSrcElemKernel() = delete;
 
   unsigned tkeNp1_{stk::mesh::InvalidOrdinal};
   unsigned tdrNp1_{stk::mesh::InvalidOrdinal};
   unsigned densityNp1_{stk::mesh::InvalidOrdinal};
   unsigned velocityNp1_{stk::mesh::InvalidOrdinal};
-  unsigned resStressNp1_{stk::mesh::InvalidOrdinal};
   unsigned visc_{stk::mesh::InvalidOrdinal};
   unsigned tvisc_{stk::mesh::InvalidOrdinal};
-  unsigned alpha_{stk::mesh::InvalidOrdinal};
-  unsigned dplus_{stk::mesh::InvalidOrdinal};
   unsigned minD_{stk::mesh::InvalidOrdinal};
-  unsigned prod_{stk::mesh::InvalidOrdinal};
   unsigned coordinates_{stk::mesh::InvalidOrdinal};
 
   const bool lumpedMass_;
   const bool shiftedGradOp_;
-  const double cEpsOne_;
-  const double cEpsTwo_;
-  const double fOne_;
 
   const int* ipNodeMap_;
 
@@ -75,4 +68,4 @@ private:
 } // namespace nalu
 } // namespace sierra
 
-#endif /* TOTALDISSIPATIONRATETAMSKESRCELEMKERNEL_H */
+#endif /* TURBKINETICENERGYCHIENKEPSSRCELEMKERNEL_H */

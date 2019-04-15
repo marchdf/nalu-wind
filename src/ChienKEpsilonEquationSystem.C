@@ -138,7 +138,7 @@ void
 ChienKEpsilonEquationSystem::solve_and_update()
 {
   // wrap timing
-  // KE_FIXME: deal with timers; all on misc for KEEqs double timeA, timeB;
+  // KEps_FIXME: deal with timers; all on misc for KEpsEqs double timeA, timeB;
   if ( isInit_ ) {
     // compute projected nodal gradients
     tkeEqSys_->compute_projected_nodal_gradient();
@@ -156,7 +156,7 @@ ChienKEpsilonEquationSystem::solve_and_update()
     }
   }
 
-  // KE effective viscosity for k and epsilon 
+  // KEps effective viscosity for k and epsilon 
   tkeEqSys_->compute_effective_diff_flux_coeff();
   tdrEqSys_->compute_effective_diff_flux_coeff();
 
@@ -328,7 +328,7 @@ ChienKEpsilonEquationSystem::update_and_clip()
 
   // parallel assemble clipped value
   if (realm_.debug()) {
-    NaluEnv::self().naluOutputP0() << "Add KE clipping diagnostic" << std::endl;
+    NaluEnv::self().naluOutputP0() << "Add KEps clipping diagnostic" << std::endl;
   }
 }
 

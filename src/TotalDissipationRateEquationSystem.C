@@ -41,7 +41,7 @@
 #include <ScalarMassElemSuppAlgDep.h>
 #include <Simulation.h>
 #include <SolutionOptions.h>
-#include <TotalDissipationRateChienKENodeSourceSuppAlg.h>
+#include <TotalDissipationRateChienKEpsNodeSourceSuppAlg.h>
 #include <TimeIntegrator.h>
 #include <SolverAlgorithmDriver.h>
 
@@ -57,10 +57,10 @@
 #include <kernel/ScalarUpwAdvDiffElemKernel.h>
 #include <kernel/ScalarTAMSAdvDiffElemKernel.h>
 #include <kernel/ScalarTAMSUpwAdvDiffElemKernel.h>
-#include <kernel/TotalDissipationRateChienKESrcElemKernel.h>
+#include <kernel/TotalDissipationRateChienKEpsSrcElemKernel.h>
 
 // UT Austin Hybird TAMS kernel
-#include <kernel/TotalDissipationRateTAMSKESrcElemKernel.h>
+#include <kernel/TotalDissipationRateTAMSKEpsSrcElemKernel.h>
 
 // nso
 #include <nso/ScalarNSOElemKernel.h>
@@ -310,8 +310,8 @@ TotalDissipationRateEquationSystem::register_interior_algorithm(
       }
 
       // now create the src alg for tdr source
-      TotalDissipationRateChienKENodeSourceSuppAlg *theSrc
-        = new TotalDissipationRateChienKENodeSourceSuppAlg(realm_);
+      TotalDissipationRateChienKEpsNodeSourceSuppAlg *theSrc
+        = new TotalDissipationRateChienKEpsNodeSourceSuppAlg(realm_);
       theAlg->supplementalAlg_.push_back(theSrc);
 
       // Add src term supp alg...; limited number supported
@@ -379,12 +379,12 @@ TotalDissipationRateEquationSystem::register_interior_algorithm(
         (partTopo, *this, activeKernels, "TAMS_upw_advection_diffusion",
         realm_.bulk_data(), *realm_.solutionOptions_, this, tdr_, dedx_, evisc_, dataPreReqs);
 
-      build_topo_kernel_if_requested<TotalDissipationRateChienKESrcElemKernel>
-        (partTopo, *this, activeKernels, "ke",
+      build_topo_kernel_if_requested<TotalDissipationRateChienKEpsSrcElemKernel>
+        (partTopo, *this, activeKernels, "keps",
          realm_.bulk_data(), *realm_.solutionOptions_, dataPreReqs, false);
 
-      build_topo_kernel_if_requested<TotalDissipationRateChienKESrcElemKernel>
-        (partTopo, *this, activeKernels, "lumped_ke",
+      build_topo_kernel_if_requested<TotalDissipationRateChienKEpsSrcElemKernel>
+        (partTopo, *this, activeKernels, "lumped_keps",
          realm_.bulk_data(), *realm_.solutionOptions_, dataPreReqs, true);
 
       build_topo_kernel_if_requested<ScalarNSOElemKernel>
@@ -404,12 +404,12 @@ TotalDissipationRateEquationSystem::register_interior_algorithm(
          realm_.bulk_data(), *realm_.solutionOptions_, tdr_, dedx_, evisc_, 1.0, 1.0, dataPreReqs);
 
       // UT Austin Hybrid TAMS model implementations for TDR source terms
-      build_topo_kernel_if_requested<TotalDissipationRateTAMSKESrcElemKernel>
-        (partTopo, *this, activeKernels, "tams_ke",
+      build_topo_kernel_if_requested<TotalDissipationRateTAMSKEpsSrcElemKernel>
+        (partTopo, *this, activeKernels, "tams_keps",
          realm_.bulk_data(), *realm_.solutionOptions_, dataPreReqs, false);
 
-      build_topo_kernel_if_requested<TotalDissipationRateTAMSKESrcElemKernel>
-        (partTopo, *this, activeKernels, "lumped_tams_ke",
+      build_topo_kernel_if_requested<TotalDissipationRateTAMSKEpsSrcElemKernel>
+        (partTopo, *this, activeKernels, "lumped_tams_keps",
          realm_.bulk_data(), *realm_.solutionOptions_, dataPreReqs, true);
 
       report_invalid_supp_alg_names();

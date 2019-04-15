@@ -5,8 +5,8 @@
 /*  directory structure                                                   */
 /*------------------------------------------------------------------------*/
 
-#ifndef MOMENTUMTAMSKEDIFFELEMKERNEL_H
-#define MOMENTUMTAMSKEDIFFELEMKERNEL_H
+#ifndef MOMENTUMTAMSKEPSDIFFELEMKERNEL_H
+#define MOMENTUMTAMSKEPSDIFFELEMKERNEL_H
 
 #include "kernel/Kernel.h"
 #include "FieldTypeDef.h"
@@ -27,16 +27,16 @@ class ElemDataRequests;
  *
  */
 template <typename AlgTraits>
-class MomentumTAMSKEDiffElemKernel : public Kernel
+class MomentumTAMSKEpsDiffElemKernel : public Kernel
 {
 public:
-  MomentumTAMSKEDiffElemKernel(
+  MomentumTAMSKEpsDiffElemKernel(
     const stk::mesh::BulkData&,
     const SolutionOptions&,
     ScalarFieldType*,
     ElemDataRequests&);
 
-  virtual ~MomentumTAMSKEDiffElemKernel() {}
+  virtual ~MomentumTAMSKEpsDiffElemKernel() {}
 
   using Kernel::execute;
   virtual void execute(
@@ -47,7 +47,7 @@ public:
   DoubleType get_M43_constant(DoubleType D[AlgTraits::nDim_][AlgTraits::nDim_]);
 
 private:
-  MomentumTAMSKEDiffElemKernel() = delete;
+  MomentumTAMSKEpsDiffElemKernel() = delete;
 
   const double includeDivU_;
 
@@ -81,4 +81,4 @@ private:
 } // namespace nalu
 } // namespace sierra
 
-#endif /* MOMENTUMTAMSKEDIFFELEMKERNEL_H */
+#endif /* MOMENTUMTAMSKEPSDIFFELEMKERNEL_H */

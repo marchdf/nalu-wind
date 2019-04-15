@@ -5,7 +5,7 @@
 /*  directory structure                                                   */
 /*------------------------------------------------------------------------*/
 
-#include "kernel/MomentumTAMSKEDiffElemKernel.h"
+#include "kernel/MomentumTAMSKEpsDiffElemKernel.h"
 #include "AlgTraits.h"
 #include "EigenDecomposition.h"
 #include "master_element/MasterElement.h"
@@ -27,7 +27,7 @@ namespace sierra {
 namespace nalu {
 
 template <typename AlgTraits>
-MomentumTAMSKEDiffElemKernel<AlgTraits>::MomentumTAMSKEDiffElemKernel(
+MomentumTAMSKEpsDiffElemKernel<AlgTraits>::MomentumTAMSKEpsDiffElemKernel(
   const stk::mesh::BulkData& bulkData,
   const SolutionOptions& solnOpts,
   ScalarFieldType* viscosity,
@@ -89,7 +89,7 @@ MomentumTAMSKEDiffElemKernel<AlgTraits>::MomentumTAMSKEDiffElemKernel(
 
 template <typename AlgTraits>
 void
-MomentumTAMSKEDiffElemKernel<AlgTraits>::execute(
+MomentumTAMSKEpsDiffElemKernel<AlgTraits>::execute(
   SharedMemView<DoubleType**>& lhs,
   SharedMemView<DoubleType*>& rhs,
   ScratchViews<DoubleType>& scratchViews)
@@ -306,7 +306,7 @@ MomentumTAMSKEDiffElemKernel<AlgTraits>::execute(
 
 template <typename AlgTraits>
 DoubleType
-MomentumTAMSKEDiffElemKernel<AlgTraits>::get_M43_constant(
+MomentumTAMSKEpsDiffElemKernel<AlgTraits>::get_M43_constant(
   DoubleType D[AlgTraits::nDim_][AlgTraits::nDim_])
 {
 
@@ -319,7 +319,7 @@ MomentumTAMSKEDiffElemKernel<AlgTraits>::get_M43_constant(
 
   if (AlgTraits::nDim_ != 3)
     throw std::runtime_error(
-      "In MomentumTAMSKEDiffElemKernel, requires 3D problem");
+      "In MomentumTAMSKEpsDiffElemKernel, requires 3D problem");
 
   // FIXME: Can we find a more elegant way to sort the three eigenvalues...
   DoubleType smallestEV =
@@ -352,7 +352,7 @@ MomentumTAMSKEDiffElemKernel<AlgTraits>::get_M43_constant(
   return poly * CMdeg_;
 }
 
-INSTANTIATE_KERNEL(MomentumTAMSKEDiffElemKernel)
+INSTANTIATE_KERNEL(MomentumTAMSKEpsDiffElemKernel)
 
 } // namespace nalu
 } // namespace sierra

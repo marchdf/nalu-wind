@@ -9,7 +9,7 @@
 #include "UnitTestUtils.h"
 #include "UnitTestHelperObjects.h"
 
-#include "kernel/MomentumTAMSKEForcingElemKernel.h"
+#include "kernel/MomentumTAMSKEpsForcingElemKernel.h"
 
 namespace {
 namespace hex8_golds {
@@ -45,7 +45,7 @@ TEST_F(TAMSKernelHex8Mesh, KE_forcing)
 
   // Initialize the kernel
   std::unique_ptr<sierra::nalu::Kernel> kernel(
-    new sierra::nalu::MomentumTAMSKEForcingElemKernel<sierra::nalu::AlgTraitsHex8>(
+    new sierra::nalu::MomentumTAMSKEpsForcingElemKernel<sierra::nalu::AlgTraitsHex8>(
       bulk_, solnOpts_, visc_, tvisc_,
       helperObjs.assembleElemSolverAlg->dataNeededByKernels_));
 

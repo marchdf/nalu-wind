@@ -19,8 +19,8 @@ add_sources(GlobalHeaderList
    MomentumMassHOElemKernel.h
    MomentumOpenAdvDiffElemKernel.h
    MomentumSymmetryElemKernel.h
-   MomentumTAMSKEDiffElemKernel.h
-   MomentumTAMSKEForcingElemKernel.h
+   MomentumTAMSKEpsDiffElemKernel.h
+   MomentumTAMSKEpsForcingElemKernel.h
    MomentumTAMSSSTDiffElemKernel.h
    MomentumTAMSSSTForcingElemKernel.h
    MomentumUpwAdvDiffElemKernel.h
@@ -48,14 +48,14 @@ add_sources(GlobalHeaderList
    TensorProductCVFEMScalarAdvDiff.h
    TensorProductCVFEMScalarBDF2TimeDerivative.h
    TensorProductCVFEMSource.h
-   TotalDissipationRateChienKESrcElemKernel.h
-   TotalDissipationRateTAMSKESrcElemKernel.h
-   TurbKineticEnergyChienKESrcElemKernel.h
+   TotalDissipationRateChienKEpsSrcElemKernel.h
+   TotalDissipationRateTAMSKEpsSrcElemKernel.h
+   TurbKineticEnergyChienKEpsSrcElemKernel.h
    TurbKineticEnergyKsgsDesignOrderSrcElemKernel.h
    TurbKineticEnergyKsgsSrcElemKernel.h
    TurbKineticEnergySSTDESSrcElemKernel.h
    TurbKineticEnergySSTSrcElemKernel.h
-   TurbKineticEnergyTAMSKESrcElemKernel.h
+   TurbKineticEnergyTAMSKEpsSrcElemKernel.h
    TurbKineticEnergySSTTAMSSrcElemKernel.h
 )
 

@@ -7,7 +7,7 @@
 
 // nalu
 #include <Algorithm.h>
-#include <ComputeTAMSKEResAdequacyElemAlgorithm.h>
+#include <ComputeTAMSKEpsResAdequacyElemAlgorithm.h>
 #include <EigenDecomposition.h>
 
 #include <FieldTypeDef.h>
@@ -29,12 +29,12 @@ namespace nalu {
 //==========================================================================
 // Class Definition
 //==========================================================================
-// ComputeTAMSKEResAdequacyElemAlgorithm - Metric Tensor
+// ComputeTAMSKEpsResAdequacyElemAlgorithm - Metric Tensor
 //==========================================================================
 //--------------------------------------------------------------------------
 //-------- constructor -----------------------------------------------------
 //--------------------------------------------------------------------------
-ComputeTAMSKEResAdequacyElemAlgorithm::ComputeTAMSKEResAdequacyElemAlgorithm(
+ComputeTAMSKEpsResAdequacyElemAlgorithm::ComputeTAMSKEpsResAdequacyElemAlgorithm(
     Realm &realm, stk::mesh::Part *part)
     : Algorithm(realm, part),
     nDim_(realm.meta_data().spatial_dimension()),
@@ -83,7 +83,7 @@ ComputeTAMSKEResAdequacyElemAlgorithm::ComputeTAMSKEResAdequacyElemAlgorithm(
 //--------------------------------------------------------------------------
 //-------- execute ---------------------------------------------------------
 //--------------------------------------------------------------------------
-void ComputeTAMSKEResAdequacyElemAlgorithm::execute() {
+void ComputeTAMSKEpsResAdequacyElemAlgorithm::execute() {
 
   stk::mesh::MetaData &meta_data = realm_.meta_data();
 
@@ -433,7 +433,7 @@ void ComputeTAMSKEResAdequacyElemAlgorithm::execute() {
   }
 }
 
-double ComputeTAMSKEResAdequacyElemAlgorithm::get_M43_constant(double D[3][3])
+double ComputeTAMSKEpsResAdequacyElemAlgorithm::get_M43_constant(double D[3][3])
 {
   // Coefficients for the polynomial 
   double c[15] = {1.033749474513071,-0.154122686264488,-0.007737595743644,
@@ -443,7 +443,7 @@ double ComputeTAMSKEResAdequacyElemAlgorithm::get_M43_constant(double D[3][3])
                   0.000486437925728, 0.002136258066662, 0.005113058518679};
 
   if (nDim_ != 3)
-     throw std::runtime_error("In ComputeTAMSKEResAdequacyElemAlgorithm, requires 3D");
+     throw std::runtime_error("In ComputeTAMSKEpsResAdequacyElemAlgorithm, requires 3D");
 
   // FIXME: Can we find a more elegant way to sort the three eigenvalues...
   double smallestEV = stk::math::min(D[0][0], stk::math::min(D[1][1], D[2][2]));
