@@ -24,23 +24,29 @@
 namespace sierra {
 namespace nalu {
 
-template<typename AlgTraits>
+template <typename AlgTraits>
 MomentumBodyForceSrcElemKernel<AlgTraits>::MomentumBodyForceSrcElemKernel(
   const stk::mesh::BulkData& bulkData,
   const SolutionOptions& solnOpts,
   ElemDataRequests& dataPreReqs)
   : Kernel(),
-    ipNodeMap_(sierra::nalu::MasterElementRepo::get_volume_master_element(AlgTraits::topo_)->ipNodeMap())
+    ipNodeMap_(sierra::nalu::MasterElementRepo::get_volume_master_element(
+                 AlgTraits::topo_)
+                 ->ipNodeMap())
 {
   const stk::mesh::MetaData& metaData = bulkData.mesh_meta_data();
   densityNp1_ = get_field_ordinal(metaData, "density");
 
-  const std::vector<double>& solnOptsBodyForce = solnOpts.get_bodyForce_vector(AlgTraits::nDim_);
+  const std::vector<double>& solnOptsBodyForce =
+    solnOpts.get_bodyForce_vector(AlgTraits::nDim_);
   for (int i = 0; i < AlgTraits::nDim_; i++)
     bodyForce_(i) = solnOptsBodyForce[i];
 
-  MasterElement* meSCV = sierra::nalu::MasterElementRepo::get_volume_master_element(AlgTraits::topo_);
-  get_scv_shape_fn_data<AlgTraits>([&](double* ptr){meSCV->shape_fcn(ptr);}, v_shape_function_);
+  MasterElement* meSCV =
+    sierra::nalu::MasterElementRepo::get_volume_master_element(
+      AlgTraits::topo_);
+  get_scv_shape_fn_data<AlgTraits>(
+    [&](double* ptr) { meSCV->shape_fcn(ptr); }, v_shape_function_);
 
   // add master elements
   dataPreReqs.add_cvfem_volume_me(meSCV);
@@ -50,25 +56,28 @@ MomentumBodyForceSrcElemKernel<AlgTraits>::MomentumBodyForceSrcElemKernel(
   dataPreReqs.add_master_element_call(SCV_VOLUME, CURRENT_COORDINATES);
 }
 
-template<typename AlgTraits>
+template <typename AlgTraits>
 MomentumBodyForceSrcElemKernel<AlgTraits>::~MomentumBodyForceSrcElemKernel()
-{}
+{
+}
 
-template<typename AlgTraits>
+template <typename AlgTraits>
 void
 MomentumBodyForceSrcElemKernel<AlgTraits>::execute(
   SharedMemView<DoubleType**>& /* lhs */,
   SharedMemView<DoubleType*>& rhs,
   ScratchViews<DoubleType>& scratchViews)
 {
-  SharedMemView<DoubleType*>& v_densityNp1 = scratchViews.get_scratch_view_1D(densityNp1_);
-  SharedMemView<DoubleType*>& v_scv_volume = scratchViews.get_me_views(CURRENT_COORDINATES).scv_volume;
+  SharedMemView<DoubleType*>& v_densityNp1 =
+    scratchViews.get_scratch_view_1D(densityNp1_);
+  SharedMemView<DoubleType*>& v_scv_volume =
+    scratchViews.get_me_views(CURRENT_COORDINATES).scv_volume;
 
-  for (int ip=0; ip < AlgTraits::numScvIp_; ++ip) {
+  for (int ip = 0; ip < AlgTraits::numScvIp_; ++ip) {
     const int nearestNode = ipNodeMap_[ip];
     DoubleType densityIp = 0.0;
 
-    for (int ic=0; ic < AlgTraits::nodesPerElement_; ++ic) {
+    for (int ic = 0; ic < AlgTraits::nodesPerElement_; ++ic) {
       const DoubleType r = v_shape_function_(ip, ic);
       densityIp += r * v_densityNp1(ic);
     }
@@ -76,8 +85,8 @@ MomentumBodyForceSrcElemKernel<AlgTraits>::execute(
     // Compute RHS
     const DoubleType scV = v_scv_volume(ip);
     const int nnNdim = nearestNode * AlgTraits::nDim_;
-    const DoubleType fac = -densityIp * scV;
-    for (int j=0; j < AlgTraits::nDim_; ++j) {
+    const DoubleType fac = densityIp * scV;
+    for (int j = 0; j < AlgTraits::nDim_; ++j) {
       rhs(nnNdim + j) += fac * bodyForce_(j);
     }
 
@@ -87,5 +96,5 @@ MomentumBodyForceSrcElemKernel<AlgTraits>::execute(
 
 INSTANTIATE_KERNEL(MomentumBodyForceSrcElemKernel)
 
-}  // nalu
-}  // sierra
+} // namespace nalu
+} // namespace sierra
