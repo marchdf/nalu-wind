@@ -209,11 +209,11 @@ void ComputeTAMSKEpsResAdequacyElemAlgorithm::execute() {
 
       const double fourThirds = 4.0/3.0;
 
-      for (unsigned k = 0; k < nDim_; k++) {
-        const double D43 = stk::math::pow(D[k][k], fourThirds);
+      for (unsigned l = 0; l < nDim_; l++) {
+        const double D43 = stk::math::pow(D[l][l], fourThirds);
         for (unsigned i = 0; i < nDim_; i++) {
           for (unsigned j = 0; j < nDim_; j++) {
-            M43[i][j] += Q[i][k] * Q[j][k] * D43;
+            M43[i][j] += Q[i][l] * Q[j][l] * D43;
           }
         }
       }
@@ -333,7 +333,7 @@ void ComputeTAMSKEpsResAdequacyElemAlgorithm::execute() {
         const double weightAvgScs = std::max(1.0 - dt/TaveScs, 0.0);
         const double weightInstScs = std::min(dt/TaveScs, 1.0);
 
-        avgMdot[ip] = weightAvgScs * avgMdot[ip] + weightInstScs * mdot[ip];
+        //avgMdot[ip] = weightAvgScs * avgMdot[ip] + weightInstScs * mdot[ip];
 
 
         const double epsilon13 = stk::math::pow(tdrScs, 1.0/3.0);
@@ -390,6 +390,8 @@ void ComputeTAMSKEpsResAdequacyElemAlgorithm::execute() {
         const double T_ke = tkeScs / tdrScs;
         const double v2 = 1.0/0.22 * (mutScs / T_ke);
         const double PMscale = std::pow(1.5*alphaScs*v2,-1.5);
+        if (v2 == 0.0)
+          throw std::runtime_error("TAMSKEResAdequacy: v2 is 0, will cause NaN");
         for (unsigned i = 0; i < nDim_; ++i)
           for (unsigned j = 0; j < nDim_; ++j)
             PM[i][j] = PM[i][j] * PMscale;

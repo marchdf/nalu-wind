@@ -8,6 +8,7 @@
 #include "kernel/ScalarTAMSUpwAdvDiffElemKernel.h"
 #include "AlgTraits.h"
 #include "master_element/MasterElement.h"
+#include "master_element/MasterElementFactory.h"
 #include "SolutionOptions.h"
 #include "EquationSystem.h"
 #include "PecletFunction.h"
@@ -56,7 +57,7 @@ ScalarTAMSUpwAdvDiffElemKernel<AlgTraits>::ScalarTAMSUpwAdvDiffElemKernel(
   // Save of required fields
   const stk::mesh::MetaData& metaData = bulkData.mesh_meta_data();
   coordinates_ = get_field_ordinal(metaData, solnOpts.get_coordinates_name());
-  massFlowRate_ = get_field_ordinal(metaData, "average_mass_flow_rate");
+  massFlowRate_ = get_field_ordinal(metaData, "average_mass_flow_rate", stk::topology::ELEM_RANK);
   density_ = get_field_ordinal(metaData, "average_density");
 
   const std::string vrtm_name =

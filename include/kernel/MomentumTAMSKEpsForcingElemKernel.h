@@ -52,6 +52,7 @@ public:
 private:
   double time_{0.0};
   double dt_{0.0};
+  int step_{0};
 
   DoubleType pi_;
 

@@ -21,6 +21,7 @@
 #include <AuxFunctionAlgorithm.h>
 #include <ConstantAuxFunction.h>
 #include <CopyFieldAlgorithm.h>
+#include <ComputeTAMSAvgMdotElemAlgorithm.h>
 #include <ComputeMetricTensorElemAlgorithm.h>
 #include <ComputeTAMSKEpsAveragesElemAlgorithm.h>
 #include <ComputeTAMSKEpsResAdequacyElemAlgorithm.h>
@@ -47,6 +48,13 @@
 #include <SolutionOptions.h>
 #include <TAMSEquationSystem.h>
 #include <TimeIntegrator.h>
+#include <TurbViscChienKEpsAlgorithm.h>
+#include <TurbViscKsgsAlgorithm.h>
+#include <TurbViscSmagorinskyAlgorithm.h>
+#include <TurbViscSSTAlgorithm.h>
+#include <TurbViscTAMSSSTAlgorithm.h>
+#include <TurbViscTAMSKEpsAlgorithm.h>
+#include <TurbViscWaleAlgorithm.h>
 
 #include <SolverAlgorithmDriver.h>
 
@@ -128,6 +136,8 @@ TAMSEquationSystem::TAMSEquationSystem(
     resolutionAdequacyAlgDriver_(new AlgorithmDriver(realm_)),
     averagingAlgDriver_(new AlgorithmDriver(realm_)),
     alphaAlgDriver_(new AlgorithmDriver(realm_)),
+    avgMdotAlgDriver_(new AlgorithmDriver(realm_)),
+    tviscAlgDriver_(new AlgorithmDriver(realm_)),
     turbulenceModel_(realm_.solutionOptions_->turbulenceModel_),
     isInit_(true)
 {
@@ -157,6 +167,10 @@ TAMSEquationSystem::~TAMSEquationSystem()
     delete alphaAlgDriver_;
   if (NULL != resolutionAdequacyAlgDriver_)
     delete resolutionAdequacyAlgDriver_;
+  if (NULL != avgMdotAlgDriver_)
+    delete avgMdotAlgDriver_;
+  if (NULL != tviscAlgDriver_)
+    delete tviscAlgDriver_;
 }
 
 //--------------------------------------------------------------------------
@@ -238,24 +252,22 @@ TAMSEquationSystem::register_element_fields(
 
   const int nDim = meta_data.spatial_dimension();
 
-  metric_ = &(meta_data.declare_field<GenericFieldType>(stk::topology::ELEMENT_RANK,           
-"metric_tensor"));
+  metric_ = &(meta_data.declare_field<GenericFieldType>(stk::topology::ELEMENT_RANK,"metric_tensor"));
   stk::mesh::put_field_on_mesh(*metric_, *part, nDim*nDim, nullptr);
 
-  resAdequacy_ = &(meta_data.declare_field<ScalarFieldType>(stk::topology::ELEMENT_RANK,       
-"resolution_adequacy_parameter"));
+  resAdequacy_ = &(meta_data.declare_field<ScalarFieldType>(stk::topology::ELEMENT_RANK,"resolution_adequacy_parameter"));
   stk::mesh::put_field_on_mesh(*resAdequacy_, *part, nullptr);
 
-  avgResAdequacy_ = &(meta_data.declare_field<ScalarFieldType>(stk::topology::ELEMENT_RANK,    
-"average_resolution_adequacy_parameter"));
+  avgResAdequacy_ = &(meta_data.declare_field<ScalarFieldType>(stk::topology::ELEMENT_RANK,"average_resolution_adequacy_parameter"));
   stk::mesh::put_field_on_mesh(*avgResAdequacy_, *part, nullptr);
   realm_.augment_restart_variable_list("average_resolution_adequacy_parameter");
 
   MasterElement *meSCS = sierra::nalu::MasterElementRepo::get_surface_master_element(theTopo);
   const int numScsIp = meSCS->num_integration_points();
 
-  avgMdot_ = &(meta_data.declare_field<GenericFieldType>(stk::topology::ELEMENT_RANK,          
-"average_mass_flow_rate"));
+  NaluEnv::self().naluOutputP0() << "Mdot average added in TAMS " << std::endl;
+
+  avgMdot_ = &(meta_data.declare_field<GenericFieldType>(stk::topology::ELEMENT_RANK,"average_mass_flow_rate"));
   stk::mesh::put_field_on_mesh(*avgMdot_, *part, numScsIp, nullptr);
   realm_.augment_restart_variable_list("average_mass_flow_rate");
 }
@@ -351,9 +363,62 @@ TAMSEquationSystem::register_interior_algorithm(
     alphaAlgDriver_->algMap_[algType] = alphaAlg;
   }
   else {
-    itmt->second->partVec_.push_back(part);
+    itkr->second->partVec_.push_back(part);
   }
 
+  // avgMdot algorithm
+  if ( NULL == avgMdotAlgDriver_ )
+    avgMdotAlgDriver_ = new AlgorithmDriver(realm_);
+
+  std::map<AlgorithmType, Algorithm *>::iterator itmd =
+    avgMdotAlgDriver_->algMap_.find(algType);
+
+  if (itmd == avgMdotAlgDriver_->algMap_.end() ) {
+    ComputeTAMSAvgMdotElemAlgorithm *avgMdotAlg =
+      new ComputeTAMSAvgMdotElemAlgorithm(realm_, part);
+    avgMdotAlgDriver_->algMap_[algType] = avgMdotAlg;
+  }
+  else {
+    itmd->second->partVec_.push_back(part);
+  }
+
+  // FIXME: tvisc needed for initialization only as TAMS goes before LowMach
+  //        but relies on tvisc.  Perhaps there is a way to call tvisc from LowMach here? 
+  std::map<AlgorithmType, Algorithm *>::iterator it_tv =
+    tviscAlgDriver_->algMap_.find(algType);
+  if ( it_tv == tviscAlgDriver_->algMap_.end() ) {
+    Algorithm * theAlg = NULL;
+    switch (realm_.solutionOptions_->turbulenceModel_ ) {
+      case KSGS:
+        theAlg = new TurbViscKsgsAlgorithm(realm_, part);
+        break;
+      case SMAGORINSKY:
+        theAlg = new TurbViscSmagorinskyAlgorithm(realm_, part);
+        break;
+      case WALE:
+        theAlg = new TurbViscWaleAlgorithm(realm_, part);
+        break;
+      case SST: case SST_DES:
+        theAlg = new TurbViscSSTAlgorithm(realm_, part);
+        break;
+      case KEPS:
+        theAlg = new TurbViscChienKEpsAlgorithm(realm_, part);
+        break;
+      case TAMS_SST: 
+        theAlg = new TurbViscTAMSSSTAlgorithm(realm_,part);
+        break;
+      case TAMS_KEPS:
+        theAlg = new TurbViscTAMSKEpsAlgorithm(realm_,part);
+        break;
+      default:
+        throw std::runtime_error("non-supported turb model");
+    }
+    tviscAlgDriver_->algMap_[algType] = theAlg;
+  }
+  else {
+    it_tv->second->partVec_.push_back(part);
+  }
+	
   //KernelBuilder kb(*this, *part, solverAlgDriver_->solverAlgorithmMap_, realm_.using_tensor_product_kernels());
 
   //kb.build_topo_kernel_if_requested<TAMSForcingElemKernel>
@@ -493,6 +558,8 @@ TAMSEquationSystem::solve_and_update()
 
   compute_resolution_adequacy_parameters();
 
+  compute_avgMdot();
+
   // TODO: Add recalculation of metric tensor if mesh changes
 
   // Forcing poisson solve
@@ -527,6 +594,9 @@ void
 TAMSEquationSystem::initial_work()
 {
   compute_metric_tensor();
+  // Need to calculate tvisc in initial work in cases where TAMS executes before
+  // LowMach to prevent NaNs in initial avgResAdeq calculation
+  //tviscAlgDriver_->execute();
 
   stk::mesh::MetaData & meta_data = realm_.meta_data();
 
@@ -618,6 +688,7 @@ TAMSEquationSystem::initial_work()
   compute_averages();
   compute_alpha();
   compute_resolution_adequacy_parameters();
+  compute_avgMdot();
 }
 
 //--------------------------------------------------------------------------
@@ -703,6 +774,16 @@ TAMSEquationSystem::compute_alpha()
 {
   if ( NULL != alphaAlgDriver_)
     alphaAlgDriver_->execute();
+}
+
+//--------------------------------------------------------------------------
+//-------- compute_avgMdot() -----------------------------------------------
+//--------------------------------------------------------------------------
+void
+TAMSEquationSystem::compute_avgMdot()
+{
+  if ( NULL != avgMdotAlgDriver_)
+    avgMdotAlgDriver_->execute();
 }
 
 //--------------------------------------------------------------------------
