@@ -284,14 +284,14 @@ void ComputeTAMSKEpsResAdequacyElemAlgorithm::execute() {
           p_fluctUjScs[j] = 0.0;
           p_avgUjScs[j] = 0.0;
           p_coordScs[j] = 0.0;
-          for ( unsigned k = 0; k < nDim_; ++k) {
-            p_fluctDudxScs[j*nDim_ + k] = 0.0;
-            p_avgDudxScs[j*nDim_ + k] = 0.0;
-            p_dudxScs[j*nDim_ + k] = 0.0;
-            p_tauSGRS[j*nDim_ + k] = 0.0;
-            p_tauSGET[j*nDim_ + k] = 0.0;
-            p_tau[j*nDim_ + k] = 0.0;
-            p_Psgs[j*nDim_ + k] = 0.0;
+          for ( unsigned l = 0; l < nDim_; ++l) {
+            p_fluctDudxScs[j*nDim_ + l] = 0.0;
+            p_avgDudxScs[j*nDim_ + l] = 0.0;
+            p_dudxScs[j*nDim_ + l] = 0.0;
+            p_tauSGRS[j*nDim_ + l] = 0.0;
+            p_tauSGET[j*nDim_ + l] = 0.0;
+            p_tau[j*nDim_ + l] = 0.0;
+            p_Psgs[j*nDim_ + l] = 0.0;
           }
         }
 
@@ -349,13 +349,13 @@ void ComputeTAMSKEpsResAdequacyElemAlgorithm::execute() {
             p_tauSGRS[i*nDim_ + j] += p_avgDudxScs[i*nDim_ + j] + p_avgDudxScs[j*nDim_ + i];
             p_tauSGRS[i*nDim_ + j] *= coeffSGRS;
 
-            for (unsigned k = 0; k < nDim_; ++k) {
+            for (unsigned l = 0; l < nDim_; ++l) {
               // Calculate tauSGET_ij = CM43*<eps>^(1/3)*(M43_ik*dkuj' + M43_jkdkui')
               // where <eps> is the mean dissipation backed out from the SST mean k and
               // mean omega and dkuj' is the fluctuating velocity gradients.
               const double coeffSGET = avgRhoScs * CM43 * epsilon13;
-              p_tauSGET[i*nDim_ + j] += coeffSGET * (M43[i][k] * p_fluctDudxScs[j*nDim_ + k] + 
-                                                   M43[j][k] * p_fluctDudxScs[i*nDim_ + k]);
+              p_tauSGET[i*nDim_ + j] += coeffSGET * (M43[i][l] * p_fluctDudxScs[j*nDim_ + l] + 
+                                                   M43[j][l] * p_fluctDudxScs[i*nDim_ + l]);
             }
           }
           //p_tauSGRS[i*nDim_ + i] += -alphaScs*2.0/3.0*tkeScs;
@@ -372,9 +372,9 @@ void ComputeTAMSKEpsResAdequacyElemAlgorithm::execute() {
         // where diuj is the instantaneous velocity gradients
         for (unsigned i = 0; i < nDim_; ++i) {
           for (unsigned j = 0; j < nDim_; ++j) {
-            for (unsigned k = 0; k < nDim_; ++k)
-              p_Psgs[i*nDim_ + j] += p_tau[i*nDim_ + k] * p_dudxScs[k*nDim_ + j] + 
-                                    p_tau[j*nDim_ + k] * p_dudxScs[k*nDim_ + i];
+            for (unsigned l = 0; l < nDim_; ++l)
+              p_Psgs[i*nDim_ + j] += p_tau[i*nDim_ + l] * p_dudxScs[l*nDim_ + j] + 
+                                    p_tau[j*nDim_ + l] * p_dudxScs[l*nDim_ + i];
             p_Psgs[i*nDim_+ j] *= 0.5;
           }
         }  
@@ -382,8 +382,8 @@ void ComputeTAMSKEpsResAdequacyElemAlgorithm::execute() {
         for (unsigned i = 0; i < nDim_; ++i) 
           for (unsigned j = 0; j < nDim_; ++j) {
             PM[i][j] = 0.0;
-            for (unsigned k = 0; k < nDim_; ++k) 
-              PM[i][j] += p_Psgs[i*nDim_ + k] * Mij[k][j];
+            for (unsigned l = 0; l < nDim_; ++l) 
+              PM[i][j] += p_Psgs[i*nDim_ + l] * Mij[l][j];
           }
 
         // Scale PM first
@@ -416,7 +416,7 @@ void ComputeTAMSKEpsResAdequacyElemAlgorithm::execute() {
       double elemAlpha = 0.0;
       for ( int ic = 0; ic < nodesPerElement; ++ic ) {
         elemTke += p_tke[ic];
-	      elemTdr += p_tdr[ic];
+	elemTdr += p_tdr[ic];
         elemAvgTime += p_avgTime[ic];
         elemAlpha += p_alpha[ic];
       }

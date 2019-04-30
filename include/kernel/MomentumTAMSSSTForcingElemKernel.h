@@ -38,7 +38,7 @@ public:
     ScalarFieldType*,
     ElemDataRequests&);
 
-  virtual ~MomentumTAMSSSTForcingElemKernel() {}
+  virtual ~MomentumTAMSSSTForcingElemKernel();
 
   // Perform pre-timestep work for the computational kernel
   virtual void setup(const TimeIntegrator&);
@@ -52,8 +52,11 @@ public:
 private:
   double time_{0.0};
   double dt_{0.0};
+  int step_{0};
 
   DoubleType pi_;
+
+  std::ofstream tmpFile;
 
   MomentumTAMSSSTForcingElemKernel() = delete;
 
@@ -68,6 +71,7 @@ private:
   unsigned minDist_{stk::mesh::InvalidOrdinal};
   unsigned avgVelocity_{stk::mesh::InvalidOrdinal};
   unsigned avgDensity_{stk::mesh::InvalidOrdinal};
+  unsigned avgTime_{stk::mesh::InvalidOrdinal};
 
   unsigned viscosity_{stk::mesh::InvalidOrdinal};
   unsigned turbViscosity_{stk::mesh::InvalidOrdinal};

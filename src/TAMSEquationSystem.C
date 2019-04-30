@@ -25,8 +25,9 @@
 #include <ComputeMetricTensorElemAlgorithm.h>
 #include <ComputeTAMSKEpsAveragesElemAlgorithm.h>
 #include <ComputeTAMSKEpsResAdequacyElemAlgorithm.h>
-#include <ComputeTAMSKratioElemAlgorithm.h>
+#include <ComputeTAMSKEpsKratioElemAlgorithm.h>
 #include <ComputeTAMSSSTAveragesElemAlgorithm.h>
+#include <ComputeTAMSSSTKratioElemAlgorithm.h>
 #include <ComputeTAMSSSTResAdequacyElemAlgorithm.h>
 #include <DirichletBC.h>
 #include <EquationSystem.h>
@@ -358,9 +359,18 @@ TAMSEquationSystem::register_interior_algorithm(
     alphaAlgDriver_->algMap_.find(algType);
 
   if (itkr == alphaAlgDriver_->algMap_.end() ) {
-    ComputeTAMSKratioElemAlgorithm *alphaAlg =
-      new ComputeTAMSKratioElemAlgorithm(realm_, part);
-    alphaAlgDriver_->algMap_[algType] = alphaAlg;
+    Algorithm * theAlg = NULL;
+    switch (turbulenceModel_ ) {
+      case TAMS_SST:
+        theAlg = new ComputeTAMSSSTKratioElemAlgorithm(realm_, part);
+        break;
+      case TAMS_KEPS:
+        theAlg = new ComputeTAMSKEpsKratioElemAlgorithm(realm_, part);
+        break;
+      default:
+        throw std::runtime_error("TAMSEquationSystem: non-supported turb model");
+    }
+    alphaAlgDriver_->algMap_[algType] = theAlg;
   }
   else {
     itkr->second->partVec_.push_back(part);

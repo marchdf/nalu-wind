@@ -83,8 +83,9 @@ add_sources(GlobalHeaderList
    ComputeTAMSAvgMdotElemAlgorithm.h
    ComputeTAMSKEpsAveragesElemAlgorithm.h
    ComputeTAMSKEpsResAdequacyElemAlgorithm.h
-   ComputeTAMSKratioElemAlgorithm.h
+   ComputeTAMSKEpsKratioElemAlgorithm.h
    ComputeTAMSSSTAveragesElemAlgorithm.h
+   ComputeTAMSSSTKratioElemAlgorithm.h
    ComputeTAMSSSTResAdequacyElemAlgorithm.h
    ComputeTurbKineticEnergyWallFunctionAlgorithm.h
    ComputeWallFrictionVelocityAlgorithm.h

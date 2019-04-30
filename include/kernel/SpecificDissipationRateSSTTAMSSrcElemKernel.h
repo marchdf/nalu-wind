@@ -53,6 +53,7 @@ private:
   unsigned resStressNp1_{stk::mesh::InvalidOrdinal};
   unsigned tvisc_{stk::mesh::InvalidOrdinal};
   unsigned alpha_{stk::mesh::InvalidOrdinal};
+  unsigned prod_{stk::mesh::InvalidOrdinal};
   unsigned fOneBlend_{stk::mesh::InvalidOrdinal};
   unsigned coordinates_{stk::mesh::InvalidOrdinal};
 

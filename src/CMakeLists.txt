@@ -76,10 +76,11 @@ add_sources(GlobalSourceList
    ComputeMetricTensorElemAlgorithm.C
    ComputeSSTMaxLengthScaleElemAlgorithm.C
    ComputeTAMSAvgMdotElemAlgorithm.C
-   ComputeTAMSKratioElemAlgorithm.C
+   ComputeTAMSKEpsKratioElemAlgorithm.C
    ComputeTAMSKEpsAveragesElemAlgorithm.C
    ComputeTAMSKEpsResAdequacyElemAlgorithm.C
    ComputeTAMSSSTAveragesElemAlgorithm.C
+   ComputeTAMSSSTKratioElemAlgorithm.C
    ComputeTAMSSSTResAdequacyElemAlgorithm.C
    ComputeTurbKineticEnergyWallFunctionAlgorithm.C
    ComputeWallFrictionVelocityAlgorithm.C

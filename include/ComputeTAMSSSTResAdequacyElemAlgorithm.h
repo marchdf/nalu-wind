@@ -29,13 +29,16 @@ public:
 
   VectorFieldType *coordinates_{nullptr};
   VectorFieldType *velocityNp1_{nullptr};
-  ScalarFieldType *viscosity_{nullptr};
+  ScalarFieldType *turbVisc_{nullptr};
   ScalarFieldType *densityNp1_{nullptr};
   ScalarFieldType *sdrNp1_{nullptr};
   ScalarFieldType *tkeNp1_{nullptr};
   ScalarFieldType *alphaNp1_{nullptr};
+  GenericFieldType *massFlowRate_{nullptr};
   VectorFieldType *avgVelocity_{nullptr};
   ScalarFieldType *avgDensity_{nullptr};
+  ScalarFieldType *avgTime_{nullptr};
+  GenericFieldType *avgMdot_{nullptr};
   ScalarFieldType *resAdeq_{nullptr};
   ScalarFieldType *avgResAdeq_{nullptr};
   GenericFieldType *Mij_{nullptr};
@@ -46,14 +49,14 @@ public:
   std::vector<double> ws_det_j;
   std::vector<double> ws_scs_areav;
   std::vector<double> ws_shape_function;
-  std::vector<double> ws_mu;
+  std::vector<double> ws_mut;
 
   std::vector<double> ws_uNp1;
   std::vector<double> ws_rhoNp1;
   std::vector<double> ws_tke;
   std::vector<double> ws_sdr;
   std::vector<double> ws_alpha;
-
+  std::vector<double> ws_avgTime;
   std::vector<double> ws_avgU;
   std::vector<double> ws_avgRho;
 

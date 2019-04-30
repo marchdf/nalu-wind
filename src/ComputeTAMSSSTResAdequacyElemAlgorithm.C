@@ -47,8 +47,8 @@ ComputeTAMSSSTResAdequacyElemAlgorithm::ComputeTAMSSSTResAdequacyElemAlgorithm(
 
   coordinates_ = metaData.get_field<VectorFieldType>(
       stk::topology::NODE_RANK, realm_.get_coordinates_name());
-  viscosity_ = metaData.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "viscosity");
+  turbVisc_ = metaData.get_field<ScalarFieldType>(
+    stk::topology::NODE_RANK, "turbulent_viscosity");
 
   // FIXME: Field of state stuff...
   velocityNp1_ = metaData.get_field<VectorFieldType>(
@@ -61,11 +61,17 @@ ComputeTAMSSSTResAdequacyElemAlgorithm::ComputeTAMSSSTResAdequacyElemAlgorithm(
     stk::topology::NODE_RANK, "specific_dissipation_rate");
   alphaNp1_ = metaData.get_field<ScalarFieldType>(
     stk::topology::NODE_RANK, "k_ratio");
+  massFlowRate_ = metaData.get_field<GenericFieldType>(
+    stk::topology::ELEMENT_RANK,"mass_flow_rate_scs");
 
   avgVelocity_ = metaData.get_field<VectorFieldType>(
     stk::topology::NODE_RANK, "average_velocity");
   avgDensity_ = metaData.get_field<ScalarFieldType>(
     stk::topology::NODE_RANK, "average_density");
+  avgTime_ = metaData.get_field<ScalarFieldType>(
+    stk::topology::NODE_RANK, "average_time");
+  avgMdot_ = metaData.get_field<GenericFieldType>(
+    stk::topology::ELEMENT_RANK,"average_mass_flow_rate");
 
   resAdeq_ = metaData.get_field<ScalarFieldType>(
     stk::topology::ELEMENT_RANK, "resolution_adequacy_parameter");
@@ -111,11 +117,12 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
     ws_scs_areav.resize(numScsIp*nDim_);
     ws_shape_function.resize(numScsIp*nodesPerElement);
 
-    ws_mu.resize(nodesPerElement);
+    ws_mut.resize(nodesPerElement);
 
     ws_uNp1.resize(nDim_ * nodesPerElement);
     ws_rhoNp1.resize(nodesPerElement);
     ws_tke.resize(nodesPerElement);
+    ws_avgTime.resize(nodesPerElement);
     ws_sdr.resize(nodesPerElement);
     ws_alpha.resize(nodesPerElement);
 
@@ -141,10 +148,11 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
     double *p_scs_areav = &ws_scs_areav[0];
     double *p_shape_function = &ws_shape_function[0];
 
-    double *p_mu = &ws_mu[0];
+    double *p_mut = &ws_mut[0];
 
     double *p_uNp1 = &ws_uNp1[0];
     double *p_rhoNp1 = &ws_rhoNp1[0];
+    double *p_avgTime = &ws_avgTime[0];
     double *p_tke = &ws_tke[0];
     double *p_sdr = &ws_sdr[0];
     double *p_alpha = &ws_alpha[0];
@@ -172,6 +180,10 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
 
     for (stk::mesh::Bucket::size_type k = 0; k < length; ++k) {
 
+      // Will average mdot here as well, since it's defined on elements
+      double * mdot = stk::mesh::field_data(*massFlowRate_, b, k );
+      double * avgMdot = stk::mesh::field_data(*avgMdot_, b, k);
+
       // get Mij field_data
       const double *p_Mij = stk::mesh::field_data(*Mij_, b[k]);
 
@@ -198,11 +210,11 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
 
       const double fourThirds = 4.0/3.0;
 
-      for (unsigned k = 0; k < nDim_; k++) {
-        const double D43 = stk::math::pow(D[k][k], fourThirds);
+      for (unsigned l = 0; l < nDim_; l++) {
+        const double D43 = stk::math::pow(D[l][l], fourThirds);
         for (unsigned i = 0; i < nDim_; i++) {
           for (unsigned j = 0; j < nDim_; j++) {
-            M43[i][j] += Q[i][k] * Q[j][k] * D43;
+            M43[i][j] += Q[i][l] * Q[j][l] * D43;
           }
         }
       }
@@ -227,10 +239,11 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
         const double * avgVel = stk::mesh::field_data(*avgVelocity_, node);  
 
         // gather scalars
-        p_mu[ni]      = *stk::mesh::field_data(*viscosity_, node);
+        p_mut[ni]     = *stk::mesh::field_data(*turbVisc_, node);
         p_rhoNp1[ni]  = *stk::mesh::field_data(*densityNp1_, node);
         p_tke[ni]     = *stk::mesh::field_data(*tkeNp1_, node); 
         p_sdr[ni]     = *stk::mesh::field_data(*sdrNp1_, node);
+        p_avgTime[ni] = *stk::mesh::field_data(*avgTime_, node);
         p_alpha[ni]   = *stk::mesh::field_data(*alphaNp1_, node);
 
         p_avgRho[ni]  = *stk::mesh::field_data(*avgDensity_, node);
@@ -257,8 +270,9 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
         // zero out; instantaneous quantities
         double tkeScs = 0.0;
         double sdrScs = 0.0;
+        double avgTime = 0.0;
         double alphaScs = 0.0;
-        double muScs = 0.0;
+        double mutScs = 0.0;
 
         // zero out; fluctuating quantities
         double fluctRhoScs = 0.0;
@@ -271,14 +285,14 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
           p_fluctUjScs[j] = 0.0;
           p_avgUjScs[j] = 0.0;
           p_coordScs[j] = 0.0;
-          for ( unsigned k = 0; k < nDim_; ++k) {
-            p_fluctDudxScs[j*nDim_ + k] = 0.0;
-            p_avgDudxScs[j*nDim_ + k] = 0.0;
-            p_dudxScs[j*nDim_ + k] = 0.0;
-            p_tauSGRS[j*nDim_ + k] = 0.0;
-            p_tauSGET[j*nDim_ + k] = 0.0;
-            p_tau[j*nDim_ + k] = 0.0;
-            p_Psgs[j*nDim_ + k] = 0.0;
+          for ( unsigned l = 0; l < nDim_; ++l) {
+            p_fluctDudxScs[j*nDim_ + l] = 0.0;
+            p_avgDudxScs[j*nDim_ + l] = 0.0;
+            p_dudxScs[j*nDim_ + l] = 0.0;
+            p_tauSGRS[j*nDim_ + l] = 0.0;
+            p_tauSGET[j*nDim_ + l] = 0.0;
+            p_tau[j*nDim_ + l] = 0.0;
+            p_Psgs[j*nDim_ + l] = 0.0;
           }
         }
 
@@ -290,8 +304,9 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
           // scalars 
           tkeScs += r*p_tke[ic];
           sdrScs += r*p_sdr[ic];
+          avgTime += r*p_avgTime[ic];
           alphaScs += r*p_alpha[ic];
-          muScs += r*p_mu[ic];
+          mutScs += r*p_mut[ic];
 
           fluctRhoScs += r*(p_rhoNp1[ic] - p_avgRho[ic]); 
 
@@ -314,6 +329,14 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
           }
         }
 
+        // average mdot
+        const double TaveScs = 1.0 / (betaStar_*std::max(sdrScs, 1.e-16));
+        const double weightAvgScs = std::max(1.0 - dt/TaveScs, 0.0);
+        const double weightInstScs = std::min(dt/TaveScs, 1.0);
+
+        //avgMdot[ip] = weightAvgScs * avgMdot[ip] + weightInstScs * mdot[ip];
+
+
         const double epsilon13 = stk::math::pow(betaStar_*tkeScs*sdrScs, 1.0/3.0);
 
         for (unsigned i = 0; i < nDim_; ++i) {
@@ -323,16 +346,17 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
             // the SST model and <S_ij> is the strain rate tensor based on the
             // mean quantities... i.e this is (tauSGRS = alpha*tauSST)
             // The 2 in the coeff cancels with the 1/2 in the strain rate tensor
-            const double coeffSGRS = -alphaScs * muScs;
+            const double coeffSGRS = alphaScs * mutScs;
             p_tauSGRS[i*nDim_ + j] += p_avgDudxScs[i*nDim_ + j] + p_avgDudxScs[j*nDim_ + i];
+            p_tauSGRS[i*nDim_ + j] *= coeffSGRS;
 
-            for (unsigned k = 0; k < nDim_; ++k) {
+            for (unsigned l = 0; l < nDim_; ++l) {
               // Calculate tauSGET_ij = CM43*<eps>^(1/3)*(M43_ik*dkuj' + M43_jkdkui')
               // where <eps> is the mean dissipation backed out from the SST mean k and
               // mean omega and dkuj' is the fluctuating velocity gradients.
-              const double coeffSGET = -avgRhoScs * CM43 * epsilon13;
-              p_tauSGET[i*nDim_ + j] += coeffSGET * (M43[i][k] * p_fluctDudxScs[j*nDim_ + k] + 
-                                                   M43[j][k] * p_fluctDudxScs[i*nDim_ + k]);
+              const double coeffSGET = avgRhoScs * CM43 * epsilon13;
+              p_tauSGET[i*nDim_ + j] += coeffSGET * (M43[i][l] * p_fluctDudxScs[j*nDim_ + l] + 
+                                                   M43[j][l] * p_fluctDudxScs[i*nDim_ + l]);
             }
           }
         }
@@ -348,25 +372,35 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
         // where diuj is the instantaneous velocity gradients
         for (unsigned i = 0; i < nDim_; ++i) {
           for (unsigned j = 0; j < nDim_; ++j) {
-            for (unsigned k = 0; k < nDim_; ++k)
-              p_Psgs[i*nDim_ + j] += p_tau[i*nDim_ + k] * p_dudxScs[k*nDim_ + j] + 
-                                    p_tau[j*nDim_ + k] * p_dudxScs[k*nDim_ + i];
+            for (unsigned l = 0; l < nDim_; ++l)
+              p_Psgs[i*nDim_ + j] += p_tau[i*nDim_ + l] * p_dudxScs[l*nDim_ + j] + 
+                                    p_tau[j*nDim_ + l] * p_dudxScs[l*nDim_ + i];
             p_Psgs[i*nDim_+ j] *= 0.5;
           }
         }  
 
         for (unsigned i = 0; i < nDim_; ++i) 
-          for (unsigned j = 0; j < nDim_; ++j) 
-            for (unsigned k = 0; k < nDim_; ++k) 
-              PM[i][j] = p_Psgs[i*nDim_ + k] * Mij[i][j];
+          for (unsigned j = 0; j < nDim_; ++j) {
+            PM[i][j] = 0.0;
+            for (unsigned l = 0; l < nDim_; ++l) 
+              PM[i][j] = p_Psgs[i*nDim_ + l] * Mij[i][j];
+          }
 
-        EigenDecomposition::sym_diagonalize<double>(PM, Q, D);
+        // Scale PM first
+        const double T_sst = 1.0 / (betaStar_ * sdrScs);
+        const double v2 = 1.0/0.22 * (mutScs / T_sst);
+        const double PMscale = std::pow(1.5*alphaScs*v2,-1.5);
+        if (v2 == 0.0)
+          throw std::runtime_error("TAMSSSTResAdequacy: v2 is 0, will cause NaN");
+        for (unsigned i = 0; i < nDim_; ++i)
+          for (unsigned j = 0; j < nDim_; ++j)
+            PM[i][j] = PM[i][j] * PMscale;
+
+        //FIXME: PM is not symmetric
+        EigenDecomposition::unsym_matrix_force_sym<double>(PM, Q, D);
 
         const double maxPM = std::max(std::abs(D[0][0]), std::max(std::abs(D[1][1]), std::abs(D[2][2])));
-        const double T_sst = 1.0 / (betaStar_ * sdrScs);
-        const double v2 = 5.0 * muScs / T_sst;
-
-        resAdeqSum += std::pow(1.5/v2,1.5)*maxPM;
+        resAdeqSum += maxPM;
       }
       
       // Update the instantaneous resAdeq field
@@ -376,10 +410,17 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
       // and the averaging algorithm operates on the nodes
       double elemTke = 0.0;
       double elemSdr = 0.0;
+      double elemAvgTime = 0.0;
+      double elemAlpha = 0.0;
       for ( int ic = 0; ic < nodesPerElement; ++ic ) {
         elemTke += p_tke[ic];
         elemSdr += p_sdr[ic];
+        elemAvgTime += p_avgTime[ic];
+        elemAlpha += p_alpha[ic];
       }
+
+      if (elemAlpha >= (double)nodesPerElement)
+        resAdeq[k] = std::min(resAdeq[k],1.0);
 
       // The division by number of nodes cancels out here
       const double T_ave = 1.0 / (betaStar_ * elemSdr);

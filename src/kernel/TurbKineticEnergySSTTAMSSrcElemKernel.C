@@ -45,6 +45,7 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::
   velocityNp1_ = get_field_ordinal(metaData, "average_velocity");
   tvisc_ = get_field_ordinal(metaData, "turbulent_viscosity");
   alpha_ = get_field_ordinal(metaData, "k_ratio");
+  prod_ = get_field_ordinal(metaData, "average_production");
   coordinates_ = get_field_ordinal(metaData, solnOpts.get_coordinates_name());
 
   MasterElement* meSCV =
@@ -70,6 +71,7 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::
   dataPreReqs.add_gathered_nodal_field(densityNp1_, 1);
   dataPreReqs.add_gathered_nodal_field(velocityNp1_, AlgTraits::nDim_);
   dataPreReqs.add_gathered_nodal_field(tvisc_, 1);
+  dataPreReqs.add_gathered_nodal_field(prod_, 1);
   dataPreReqs.add_gathered_nodal_field(alpha_, 1);
   dataPreReqs.add_master_element_call(SCV_VOLUME, CURRENT_COORDINATES);
   if (shiftedGradOp_)
@@ -106,6 +108,7 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::execute(
     scratchViews.get_scratch_view_1D(tvisc_);
   SharedMemView<DoubleType*>& v_alpha =
     scratchViews.get_scratch_view_1D(alpha_);
+  SharedMemView<DoubleType*>& v_prod = scratchViews.get_scratch_view_1D(prod_);
   SharedMemView<DoubleType***>& v_dndx =
     shiftedGradOp_
       ? scratchViews.get_me_views(CURRENT_COORDINATES).dndx_scv_shifted
@@ -126,11 +129,7 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::execute(
     DoubleType sdr = 0.0;
     DoubleType tvisc = 0.0;
     DoubleType alpha = 0.0;
-    for (int i = 0; i < AlgTraits::nDim_; ++i) {
-      for (int j = 0; j < AlgTraits::nDim_; ++j) {
-        w_dudx[i][j] = 0.0;
-      }
-    }
+    DoubleType prod = 0.0;
 
     for (int ic = 0; ic < AlgTraits::nodesPerElement_; ++ic) {
 
@@ -141,30 +140,16 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::execute(
       sdr += r * v_sdrNp1(ic);
       tvisc += r * v_tvisc(ic);
       alpha += r * v_alpha(ic);
+      prod += r * v_prod(ic);
 
-      for (int i = 0; i < AlgTraits::nDim_; ++i) {
-        const DoubleType ui = v_velocityNp1(ic, i);
-        for (int j = 0; j < AlgTraits::nDim_; ++j) {
-          w_dudx[i][j] += v_dndx(ip, ic, j) * ui;
-        }
-      }
     }
 
-    DoubleType Pk = 0.0;
-    DoubleType Pk_imp = 0.0;
-    for (int i = 0; i < AlgTraits::nDim_; ++i) {
-      for (int j = 0; j < AlgTraits::nDim_; ++j) {
-        // The changes to the standard SST RANS approach in TAMS result in two
-        // changes:
-        Pk += w_dudx[i][j] * (w_dudx[i][j] + w_dudx[j][i]);
-        // 1) improvements to the production based on the resolved fluctuations
-        // FIXME: See KE Implementation
-        // Pk_imp += (w_dudx[i][j] + w_dudx[j][i]) * w_resStress[i][j];
-      }
-    }
-    // 2) the addition of alpha to modify the production
-    Pk *= alpha * tvisc;
-    Pk = Pk - Pk_imp;
+    // The changes to the standard KE RANS approach in TAMS result in two
+    // changes: 1) improvements to the production based on the resolved
+    // fluctuations 2) the addition of alpha to modify the production 3) the
+    // averaging of the production, thus it's calculation has been moved to the
+    //    averaging function
+    DoubleType Pk = prod;
 
     // tke factor
     const DoubleType tkeFac = betaStar_ * rho * sdr;

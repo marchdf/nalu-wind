@@ -9,6 +9,7 @@
 #include "AlgTraits.h"
 #include "EigenDecomposition.h"
 #include "master_element/MasterElement.h"
+#include "master_element/MasterElementFactory.h"
 #include "SolutionOptions.h"
 #include "TimeIntegrator.h"
 
@@ -54,6 +55,7 @@ MomentumTAMSSSTForcingElemKernel<AlgTraits>::MomentumTAMSSSTForcingElemKernel(
 
   avgVelocity_ = get_field_ordinal(metaData, "average_velocity");
   avgDensity_ = get_field_ordinal(metaData, "average_density");
+  avgTime_ = get_field_ordinal(metaData, "average_time");
 
   avgResAdeq_ = get_field_ordinal(
     metaData, "average_resolution_adequacy_parameter",
@@ -84,12 +86,21 @@ MomentumTAMSSSTForcingElemKernel<AlgTraits>::MomentumTAMSSSTForcingElemKernel(
   dataPreReqs.add_gathered_nodal_field(avgVelocity_, AlgTraits::nDim_);
   dataPreReqs.add_gathered_nodal_field(avgDensity_, 1);
   dataPreReqs.add_gathered_nodal_field(alphaNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(avgTime_, 1);
   dataPreReqs.add_gathered_nodal_field(minDist_, 1);
   dataPreReqs.add_element_field(avgResAdeq_, 1);
   dataPreReqs.add_element_field(Mij_, AlgTraits::nDim_, AlgTraits::nDim_);
 
   // master element data
   dataPreReqs.add_master_element_call(SCV_VOLUME, CURRENT_COORDINATES);
+
+  tmpFile.open("forcingField.txt", std::fstream::app);
+}
+
+template <typename AlgTraits>
+MomentumTAMSSSTForcingElemKernel<AlgTraits>::~MomentumTAMSSSTForcingElemKernel()
+{
+  tmpFile.close();
 }
 
 template <typename AlgTraits>
@@ -97,8 +108,10 @@ void
 MomentumTAMSSSTForcingElemKernel<AlgTraits>::setup(
   const TimeIntegrator& timeIntegrator)
 {
-  time_ = timeIntegrator.get_current_time();
+  // FIXME: Hack to match CDP time
+  time_ = timeIntegrator.get_current_time() - 440.0;
   dt_ = timeIntegrator.get_time_step();
+  step_ = timeIntegrator.get_time_step_count();
 }
 
 template <typename AlgTraits>
@@ -130,6 +143,8 @@ MomentumTAMSSSTForcingElemKernel<AlgTraits>::execute(
     scratchViews.get_scratch_view_2D(avgVelocity_);
   SharedMemView<DoubleType*>& v_alphaNp1 =
     scratchViews.get_scratch_view_1D(alphaNp1_);
+  SharedMemView<DoubleType*>& v_avgTime =
+    scratchViews.get_scratch_view_1D(avgTime_);
   SharedMemView<DoubleType*>& v_minDist =
     scratchViews.get_scratch_view_1D(minDist_);
   SharedMemView<DoubleType*>& v_avgResAdeq =
@@ -156,6 +171,7 @@ MomentumTAMSSSTForcingElemKernel<AlgTraits>::execute(
     DoubleType rhoScs = 0.0;
     DoubleType tkeScs = 0.0;
     DoubleType sdrScs = 0.0;
+    DoubleType avgTimeScs = 0.0;
     DoubleType alphaScs = 0.0;
     DoubleType wallDistScs = 0.0;
 
@@ -170,6 +186,7 @@ MomentumTAMSSSTForcingElemKernel<AlgTraits>::execute(
       rhoScs += r * v_rhoNp1(ic);
       tkeScs += r * v_tkeNp1(ic);
       sdrScs += r * v_sdrNp1(ic);
+      avgTimeScs += r * v_avgTime(ic);
       alphaScs += r * v_alphaNp1(ic);
       wallDistScs += r * v_minDist(ic);
 
@@ -196,17 +213,18 @@ MomentumTAMSSSTForcingElemKernel<AlgTraits>::execute(
 
     DoubleType length =
       FORCING_CL * stk::math::pow(alphaScs * tkeScs, 1.5) / epsScs;
-    length = stk::math::max(
-      length,
+    length = stk::math::max(length,
       Ceta * (stk::math::pow(muScs, 0.75) / stk::math::pow(epsScs, 0.25)));
-    length = stk::math::min(length, wallDistScs);
+    // FIXME: For channel, only want to clip in wall normal direction with wallDist
+    //        For other flows, will need a better approach...
+    DoubleType lengthY = stk::math::min(length, wallDistScs);
 
     DoubleType T_alpha = alphaScs * tkeScs / epsScs;
     T_alpha = stk::math::max(T_alpha, Ct * stk::math::sqrt(muScs / epsScs));
     T_alpha = BL_T * T_alpha;
 
     const DoubleType ceilLengthX = stk::math::max(length, 2.0 * v_Mij(0, 0));
-    const DoubleType ceilLengthY = stk::math::max(length, 2.0 * v_Mij(1, 1));
+    const DoubleType ceilLengthY = stk::math::max(lengthY, 2.0 * v_Mij(1, 1));
     const DoubleType ceilLengthZ = stk::math::max(length, 2.0 * v_Mij(2, 2));
 
     const DoubleType clipLengthX =
@@ -282,6 +300,7 @@ MomentumTAMSSSTForcingElemKernel<AlgTraits>::execute(
 
     DoubleType Sa = a_sign;
 
+    // FIXME: I need to straighten out this rho situation
     DoubleType a_kol =
       stk::math::min(BL_KOL * stk::math::sqrt(muScs * epsScs) / tkeScs, 1.0);
 
@@ -321,9 +340,9 @@ MomentumTAMSSSTForcingElemKernel<AlgTraits>::execute(
       double tmp_Sa = stk::simd::get_data(Sa, simdIndex);
 
       if ((tmp_fd < 1.0) && (tmp_prodr >= 0.0))
-        C_F = -1.0 * tmp_Ftarget * tmp_Sa;
+        tmp_CF = -1.0 * tmp_Ftarget * tmp_Sa;
       else
-        C_F = 0.0;
+        tmp_CF = 0.0;
       stk::simd::set_data(C_F, simdIndex, tmp_CF);
     }
     // stk::math::if_then_else((fd_temp < 1.0) && (prod_r >= 0.0), C_F = -1.0 *
@@ -337,11 +356,10 @@ MomentumTAMSSSTForcingElemKernel<AlgTraits>::execute(
     DoubleType gY = norm * hY;
     DoubleType gZ = norm * hZ;
 
-    std::ofstream tmpFile;
-    tmpFile.open("forcingField.txt");
-    tmpFile << w_coordScs[0] << w_coordScs[1] << w_coordScs[2] << gX << gY << gZ
-            << std::endl;
-    tmpFile.close();
+    //if ((step_ % 1000) == 0)
+    //{ 
+    //  tmpFile << w_coordScs[0] << w_coordScs[1] << w_coordScs[2] << gX << gY << gZ << norm << prod_r << F_target << Sa << std::endl;
+    //}
 
     // g_i is not divergence free, so we must solve a Poisson equation
     // rhs = G * normal * area;
