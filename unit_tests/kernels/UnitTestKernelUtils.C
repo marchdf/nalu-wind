@@ -272,7 +272,7 @@ private:
   static constexpr double tkenot{1.0};
 
   /// Factor for adaptivity parameter field
-  static constexpr double alphanot{1.0};
+  static constexpr double alphanot{0.5};
 
   /// Factor for sdr field
   static constexpr double sdrnot{1.0};

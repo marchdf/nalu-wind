@@ -581,8 +581,8 @@ public:
     stk::mesh::field_fill(1.0, *avgDensity_);
     stk::mesh::field_fill(0.7, *avgResAdeq_);
     stk::mesh::field_fill(1.0, *avgTime_);
-    stk::mesh::field_fill(10.0, *minDist_);
-    stk::mesh::field_fill(1.0, *Mij_);
+    stk::mesh::field_fill(0.7, *minDist_);
+    stk::mesh::field_fill(0.2, *Mij_);
     unit_test_kernel_utils::tke_test_function(bulk_, *coordinates_, *tke_);
     unit_test_kernel_utils::tdr_test_function(bulk_, *coordinates_, *tdr_);
     unit_test_kernel_utils::alpha_test_function(bulk_, *coordinates_, *alpha_);
