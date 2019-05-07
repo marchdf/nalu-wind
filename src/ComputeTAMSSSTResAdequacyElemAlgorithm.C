@@ -79,7 +79,15 @@ ComputeTAMSSSTResAdequacyElemAlgorithm::ComputeTAMSSSTResAdequacyElemAlgorithm(
     stk::topology::ELEMENT_RANK, "average_resolution_adequacy_parameter");
   Mij_ = metaData.get_field<GenericFieldType>(
     stk::topology::ELEMENT_RANK, "metric_tensor");
+
+  tmpFile.open("resAdeq.txt", std::fstream::app);
 }
+
+ComputeTAMSSSTResAdequacyElemAlgorithm::~ComputeTAMSSSTResAdequacyElemAlgorithm()
+{
+  tmpFile.close();
+}
+
 
 //--------------------------------------------------------------------------
 //-------- execute ---------------------------------------------------------
@@ -317,9 +325,11 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
             const double fluctUj = p_uNp1[ic*nDim_+j] - p_avgU[ic*nDim_+j];
             const double avgUj = p_avgU[ic*nDim_+j];
             const double uj = p_uNp1[ic*nDim_+j];
+            const double coordj = p_coordinates[ic*nDim_+j];
 
             p_fluctUjScs[j] += r*fluctUj;
             p_avgUjScs[j] += r*avgUj;
+            p_coordScs[j] += r*coordj;
 
             for (unsigned k = 0; k < nDim_; ++k) {
               p_fluctDudxScs[nDim_*j + k] += p_dndx[offSetDnDx+k]*fluctUj;
@@ -365,7 +375,7 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
         // FIXME: Do i need a rho in here?
         for (unsigned i = 0; i < nDim_; ++i) 
           for (unsigned j = 0; j < nDim_; ++j)
-            p_tau[i*nDim_ + j] = p_tauSGRS[i*nDim_ + j] + p_tauSGET[i*nDim_ + j] + 
+            p_tau[i*nDim_ + j] = p_tauSGRS[i*nDim_ + j] + p_tauSGET[i*nDim_ + j] - 
                         ((i==j) ? 2.0/3.0*alphaScs*tkeScs : 0.0);
 
         // Calculate the SGS production PSGS_ij = 1/2(tau_ik*djuk + tau_jk*diuk)
@@ -383,7 +393,7 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
           for (unsigned j = 0; j < nDim_; ++j) {
             PM[i][j] = 0.0;
             for (unsigned l = 0; l < nDim_; ++l) 
-              PM[i][j] = p_Psgs[i*nDim_ + l] * Mij[i][j];
+              PM[i][j] += p_Psgs[i*nDim_ + l] * Mij[l][j];
           }
 
         // Scale PM first
@@ -400,11 +410,16 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
         EigenDecomposition::unsym_matrix_force_sym<double>(PM, Q, D);
 
         const double maxPM = std::max(std::abs(D[0][0]), std::max(std::abs(D[1][1]), std::abs(D[2][2])));
+
+        //tmpFile << p_coordScs[0] << " " << p_coordScs[1] << " " << p_coordScs[2] << " " << maxPM << " "<< T_sst << " " << v2 << " " << PM[0][0] << " " << p_Psgs[0] << " " << p_tau[0] << " " << alphaScs << " " << mutScs << " " << epsilon13 << std::endl; 
+
         resAdeqSum += maxPM;
       }
       
       // Update the instantaneous resAdeq field
       resAdeq[k] = resAdeqSum/numScsIp;
+      // FIXME: Limiters as in CDP...
+      resAdeq[k] = std::min(resAdeq[k],30.0);
   
       // Update the average field here as well since it is an element quantity
       // and the averaging algorithm operates on the nodes
@@ -419,11 +434,12 @@ void ComputeTAMSSSTResAdequacyElemAlgorithm::execute() {
         elemAlpha += p_alpha[ic];
       }
 
+      // elemAlpha is sum of nodal alpha, so we are checking alpha >= 1 here
       if (elemAlpha >= (double)nodesPerElement)
         resAdeq[k] = std::min(resAdeq[k],1.0);
 
-      // The division by number of nodes cancels out here
-      const double T_ave = 1.0 / (betaStar_ * elemSdr);
+      // elemSdr is the sum so divide it by nodesPerElement to get average Sdr over element nodes
+      const double T_ave = (double)nodesPerElement / (betaStar_ * elemSdr);
 
       const double weightAvg = std::max(1.0 - dt/T_ave, 0.0);
       const double weightInst = std::min(dt/T_ave, 1.0);

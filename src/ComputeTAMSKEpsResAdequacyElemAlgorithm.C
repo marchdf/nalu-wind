@@ -78,6 +78,13 @@ ComputeTAMSKEpsResAdequacyElemAlgorithm::ComputeTAMSKEpsResAdequacyElemAlgorithm
     stk::topology::ELEMENT_RANK, "average_resolution_adequacy_parameter");
   Mij_ = metaData.get_field<GenericFieldType>(
     stk::topology::ELEMENT_RANK, "metric_tensor");
+
+  tmpFile.open("resAdeq.txt", std::fstream::app);
+}
+
+ComputeTAMSKEpsResAdequacyElemAlgorithm::~ComputeTAMSKEpsResAdequacyElemAlgorithm()
+{
+  tmpFile.close();
 }
 
 //--------------------------------------------------------------------------
@@ -316,9 +323,11 @@ void ComputeTAMSKEpsResAdequacyElemAlgorithm::execute() {
             const double fluctUj = p_uNp1[ic*nDim_+j] - p_avgU[ic*nDim_+j];
             const double avgUj = p_avgU[ic*nDim_+j];
             const double uj = p_uNp1[ic*nDim_+j];
+            const double coordj = p_coordinates[ic*nDim_+j];
 
             p_fluctUjScs[j] += r*fluctUj;
             p_avgUjScs[j] += r*avgUj;
+            p_coordScs[j] += r*coordj;
 
             for (unsigned k = 0; k < nDim_; ++k) {
               p_fluctDudxScs[nDim_*j + k] += p_dndx[offSetDnDx+k]*fluctUj;
@@ -400,6 +409,9 @@ void ComputeTAMSKEpsResAdequacyElemAlgorithm::execute() {
         EigenDecomposition::unsym_matrix_force_sym<double>(PM, Q, D);
 
         const double maxPM = std::max(std::abs(D[0][0]), std::max(std::abs(D[1][1]), std::abs(D[2][2])));
+
+        //tmpFile << p_coordScs[0] << " " << p_coordScs[1] << " " << p_coordScs[2] << " " << maxPM << " "<< T_ke << " " << v2 << " " << PM[0][0] << " " << p_Psgs[0] << " " << p_tau[0] << " " << alphaScs << " " << mutScs << " " << epsilon13 << std::endl;        
+        
         resAdeqSum += maxPM;
       }
       
@@ -421,9 +433,11 @@ void ComputeTAMSKEpsResAdequacyElemAlgorithm::execute() {
         elemAlpha += p_alpha[ic];
       }
 
+      // elemAlpha is sum of nodal alpha, so we are checking alpha >= 1 here
       if (elemAlpha >= (double)nodesPerElement)
         resAdeq[k] = std::min(resAdeq[k],1.0);
 
+      // The division by nodesPerElement cancels out here
       const double T_ave = elemTke/elemTdr;
       //const double T_ave = elemAvgTime/(double)nodesPerElement;
       

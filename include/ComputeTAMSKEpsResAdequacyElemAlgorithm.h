@@ -18,13 +18,15 @@ class Realm;
 class ComputeTAMSKEpsResAdequacyElemAlgorithm : public Algorithm {
 public:
   ComputeTAMSKEpsResAdequacyElemAlgorithm(Realm &realm, stk::mesh::Part *part);
-  virtual ~ComputeTAMSKEpsResAdequacyElemAlgorithm() {}
+  virtual ~ComputeTAMSKEpsResAdequacyElemAlgorithm();
 
   virtual void execute();
   double get_M43_constant(double D[3][3]);
 
   const unsigned nDim_{0};
   const double CMdeg_;
+
+  std::ofstream tmpFile;
 
   VectorFieldType *coordinates_{nullptr};
   VectorFieldType *velocityNp1_{nullptr};

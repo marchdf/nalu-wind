@@ -18,7 +18,7 @@ class Realm;
 class ComputeTAMSSSTResAdequacyElemAlgorithm : public Algorithm {
 public:
   ComputeTAMSSSTResAdequacyElemAlgorithm(Realm &realm, stk::mesh::Part *part);
-  virtual ~ComputeTAMSSSTResAdequacyElemAlgorithm() {}
+  virtual ~ComputeTAMSSSTResAdequacyElemAlgorithm();
 
   virtual void execute();
   double get_M43_constant(double D[3][3]);
@@ -26,6 +26,8 @@ public:
   const unsigned nDim_{0};
   const double betaStar_;
   const double CMdeg_;
+
+  std::ofstream tmpFile;
 
   VectorFieldType *coordinates_{nullptr};
   VectorFieldType *velocityNp1_{nullptr};

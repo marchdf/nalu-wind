@@ -355,10 +355,10 @@ MomentumTAMSKEpsForcingElemKernel<AlgTraits>::execute(
     DoubleType gY = norm * hY; //* 10.0;// / dt_;
     DoubleType gZ = norm * hZ; //* 10.0;// / dt_;
 
-    //if ((step_ % 1000) == 0)
-    //{ 
-    //  tmpFile << w_coordScs[0] << w_coordScs[1] << w_coordScs[2] << gX << gY << gZ << norm << prod_r << F_target << Sa << std::endl;
-    //}
+    if ((step_ % 1000) == 0)
+    { 
+      tmpFile << w_coordScs[0] << w_coordScs[1] << w_coordScs[2] << gX << gY << gZ << a_sign << a_kol << alphaScs << tkeScs << tdrScs << prod_r << fd_temp << norm << std::endl;
+    }
 
     // g_i is not divergence free, so we must solve a Poisson equation
     // rhs = G * normal * area;
