@@ -59,7 +59,7 @@ TEST_F(TAMSKernelHex8Mesh, KE_forcing)
   helperObjs.realm.timeIntegrator_ = &timeIntegrator;
 
   // Populate LHS and RHS
-  helperObjs.assembleElemSolverAlg->execute();
+  helperObjs.execute();
 
   EXPECT_EQ(helperObjs.linsys->rhs_.extent(0), 24u);
 
