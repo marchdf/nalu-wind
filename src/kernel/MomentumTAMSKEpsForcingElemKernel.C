@@ -281,7 +281,7 @@ MomentumTAMSKEpsForcingElemKernel<AlgTraits>::execute(
 
     // Now we calculate the scaling of the initial field
     // FIXME: Pass the 0.22 as another turbulence constant (V2F_Cmu)
-    const DoubleType v2Scs = mu_tScs * tdrScs / (0.22 * rhoScs * tkeScs);
+    const DoubleType v2Scs = mu_tScs / (0.22 * rhoScs * avgTimeScs);
     const DoubleType F_target =
       FORCING_FACTOR * stk::math::sqrt(alphaScs * v2Scs) / T_alpha;
 
@@ -289,15 +289,14 @@ MomentumTAMSKEpsForcingElemKernel<AlgTraits>::execute(
       (F_target * dt_) *
       (hX * w_fluctUScs[0] + hY * w_fluctUScs[1] + hZ * w_fluctUScs[2]);
 
-    DoubleType arg = stk::math::sqrt(v_avgResAdeq(0)) - 1.0;
-    stk::math::if_then_else_zero(
-      arg < 0.0, arg = 1.0 - 1.0 / stk::math::sqrt(v_avgResAdeq(0)));
+    const DoubleType arg1 = stk::math::sqrt(v_avgResAdeq(0)) - 1.0;
+    const DoubleType arg = stk::math::if_then_else(arg1 < 0.0, 1.0 - 1.0 / stk::math::sqrt(v_avgResAdeq(0)),arg1);
 
     const DoubleType a_sign = stk::math::tanh(arg);
 
     DoubleType Sa = a_sign;
 
-    DoubleType a_kol = stk::math::min(
+    const DoubleType a_kol = stk::math::min(
       BL_KOL * stk::math::sqrt(muScs * tdrScs / rhoScs) / tkeScs, 1.0);
 
     // FIXME: Can I do a compound if statement with if_then... it was not

@@ -89,7 +89,8 @@ void ComputeTAMSSSTKratioElemAlgorithm::execute() {
 	 const double v2 = 1.0/0.22 * (tvisc[k] / T_sst);
          const double epsilon = betaStar_*tke[k]*sdr[k];
          //const double v2 = 1.0/0.22 * (tvisc[k] * tdr[k]) / std::max(tke[k], 1.0e-16);
-         const double a_kol = std::min(1.5*v2/tke[k]*std::sqrt(visc[k]*epsilon)/tke[k],1.0);
+         // FIXME: What to do with a_kol in SST?
+         const double a_kol = 0.01; //std::min(1.5*v2/tke[k]*std::sqrt(visc[k]*epsilon)/tke[k],1.0);
 
          alpha[k] = std::max(alpha[k], a_kol);
       }

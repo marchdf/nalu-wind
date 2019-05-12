@@ -562,6 +562,10 @@ TAMSEquationSystem::solve_and_update()
     isInit_ = false;
   }
 
+  // FIXME: Need this to be part of TAMS so that the order of operations is right, 
+  //        is there a way to turn it off in LowMach, so it's not called twice?
+  tviscAlgDriver_->execute();
+
   compute_averages();
  
   compute_alpha();

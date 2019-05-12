@@ -292,9 +292,8 @@ MomentumTAMSSSTForcingElemKernel<AlgTraits>::execute(
       (F_target * dt_) *
       (hX * w_fluctUScs[0] + hY * w_fluctUScs[1] + hZ * w_fluctUScs[2]);
 
-    DoubleType arg = stk::math::sqrt(v_avgResAdeq(0)) - 1.0;
-    stk::math::if_then_else_zero(
-      arg < 0.0, arg = 1.0 - 1.0 / stk::math::sqrt(v_avgResAdeq(0)));
+    const DoubleType arg1 = stk::math::sqrt(v_avgResAdeq(0)) - 1.0;
+    const DoubleType arg = stk::math::if_then_else(arg1 < 0.0, 1.0 - 1.0 / stk::math::sqrt(v_avgResAdeq(0)),arg1);
 
     const DoubleType a_sign = stk::math::tanh(arg);
 

@@ -51,6 +51,7 @@ TotalDissipationRateTAMSKEpsSrcElemKernel<AlgTraits>::
   alpha_ = get_field_ordinal(metaData, "k_ratio");
   minD_ = get_field_ordinal(metaData, "minimum_distance_to_wall");
   prod_ = get_field_ordinal(metaData, "average_production");
+  avgTime_ = get_field_ordinal(metaData, "average_time");
   coordinates_ = get_field_ordinal(metaData, solnOpts.get_coordinates_name());
 
   MasterElement* meSCV =
@@ -81,6 +82,7 @@ TotalDissipationRateTAMSKEpsSrcElemKernel<AlgTraits>::
   dataPreReqs.add_gathered_nodal_field(dplus_, 1);
   dataPreReqs.add_gathered_nodal_field(minD_, 1);
   dataPreReqs.add_gathered_nodal_field(prod_, 1);
+  dataPreReqs.add_gathered_nodal_field(avgTime_, 1);
   dataPreReqs.add_master_element_call(SCV_VOLUME, CURRENT_COORDINATES);
   if (shiftedGradOp_)
     dataPreReqs.add_master_element_call(
@@ -120,6 +122,8 @@ TotalDissipationRateTAMSKEpsSrcElemKernel<AlgTraits>::execute(
     scratchViews.get_scratch_view_1D(alpha_);
   SharedMemView<DoubleType*>& v_dplus =
     scratchViews.get_scratch_view_1D(dplus_);
+  SharedMemView<DoubleType*>& v_time =
+    scratchViews.get_scratch_view_1D(avgTime_);
   SharedMemView<DoubleType*>& v_minD = scratchViews.get_scratch_view_1D(minD_);
   SharedMemView<DoubleType*>& v_prod = scratchViews.get_scratch_view_1D(prod_);
   SharedMemView<DoubleType***>& v_dndx =
@@ -149,6 +153,8 @@ TotalDissipationRateTAMSKEpsSrcElemKernel<AlgTraits>::execute(
     DoubleType dplus = 0.0;
     DoubleType minD = 0.0;
     DoubleType prod = 0.0;
+    DoubleType time = 0.0;
+
     for (int i = 0; i < AlgTraits::nDim_; ++i) {
       w_coords[i] = 0.0;
       for (int j = 0; j < AlgTraits::nDim_; ++j) {
@@ -169,6 +175,7 @@ TotalDissipationRateTAMSKEpsSrcElemKernel<AlgTraits>::execute(
       dplus += r * v_dplus(ic);
       minD += r * v_minD(ic);
       prod += r * v_prod(ic);
+      time += r * v_time(ic);
 
       for (int i = 0; i < AlgTraits::nDim_; ++i) {
         w_coords[i] += r * v_coords(ic, i);
@@ -195,13 +202,16 @@ TotalDissipationRateTAMSKEpsSrcElemKernel<AlgTraits>::execute(
 
     // Pe includes 1/k scaling; k may be zero at a dirichlet low Re approach
     // (clip)
-    const DoubleType PeFac =
-      cEpsOne_ * fOne_ * Pk / stk::math::max(tke, 1.0e-16);
-    const DoubleType Pe = PeFac * tdr;
+    //const DoubleType PeFac =
+    //  cEpsOne_ * fOne_ * Pk / stk::math::max(tke, 1.0e-16);
+    //const DoubleType Pe = PeFac * tdr;
+    const DoubleType Pe = cEpsOne_ * fOne_ * Pk / time;
     // FIXME: Currently treating the epsilon in fTwo explicitly...
     //        see LHS below ... assess if this matters
-    const DoubleType DeFac =
-      cEpsTwo_ * fTwo * rho * tdr / stk::math::max(tke, 1.0e-16);
+    //const DoubleType DeFac =
+    //  cEpsTwo_ * fTwo * rho * tdr / stk::math::max(tke, 1.0e-16);
+    // FIXME: Straighten out this rho situation
+    const DoubleType DeFac = cEpsTwo_ * fTwo * rho / time;
     const DoubleType De = DeFac * tdr;
     // Wall distance source term, rho's cancel...
     const DoubleType LeFac =

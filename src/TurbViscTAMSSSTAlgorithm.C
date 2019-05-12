@@ -42,7 +42,8 @@ TurbViscTAMSSSTAlgorithm::TurbViscTAMSSSTAlgorithm(
     sdr_(NULL),
     minDistance_(NULL),
     dudx_(NULL),
-    tvisc_(NULL)
+    tvisc_(NULL),
+    avgTime_(NULL)
 {
   // 2003 variant; basically, sijMag replaces vorticityMag
   stk::mesh::MetaData & meta_data = realm_.meta_data();
@@ -53,7 +54,7 @@ TurbViscTAMSSSTAlgorithm::TurbViscTAMSSSTAlgorithm(
   minDistance_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "minimum_distance_to_wall");
   dudx_ = meta_data.get_field<GenericFieldType>(stk::topology::NODE_RANK, "average_dudx");
   tvisc_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "turbulent_viscosity");
-}
+  avgTime_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "average_time");}
 
 //--------------------------------------------------------------------------
 //-------- execute ---------------------------------------------------------
@@ -84,6 +85,7 @@ TurbViscTAMSSSTAlgorithm::execute()
     const double *sdr = stk::mesh::field_data(*sdr_, b);
     const double *minD = stk::mesh::field_data(*minDistance_, b);
     double *tvisc = stk::mesh::field_data(*tvisc_, b);
+    double *avgTime = stk::mesh::field_data(*avgTime_, b);
 
     for ( stk::mesh::Bucket::size_type k = 0 ; k < length ; ++k ) {
 
@@ -107,7 +109,7 @@ TurbViscTAMSSSTAlgorithm::execute()
       const double fTwo = std::tanh(fArgTwo*fArgTwo);
 
       tvisc[k] = aOne_*rho[k]*tke[k]/std::max(aOne_*sdr[k], sijMag*fTwo);
-
+      avgTime[k] = 1.0/(betaStar_*sdr[k]);
     }
   }
 }

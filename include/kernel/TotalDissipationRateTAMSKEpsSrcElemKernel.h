@@ -57,6 +57,7 @@ private:
   unsigned dplus_{stk::mesh::InvalidOrdinal};
   unsigned minD_{stk::mesh::InvalidOrdinal};
   unsigned prod_{stk::mesh::InvalidOrdinal};
+  unsigned avgTime_{stk::mesh::InvalidOrdinal};
   unsigned coordinates_{stk::mesh::InvalidOrdinal};
 
   const bool lumpedMass_;

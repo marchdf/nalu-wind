@@ -118,31 +118,9 @@ void ComputeTAMSSSTAveragesElemAlgorithm::execute() {
       const double * dudx = stk::mesh::field_data(*dudx_, b[k]);
       double * avgVel = stk::mesh::field_data(*avgVelocity_, b[k]);
       double * avgDudx = stk::mesh::field_data(*avgDudx_, b[k]);
-      // FIXME: Verify this is correct for T_ave... this is from slides, 
-      //        but CDP has something different
 
-      // At the wall, tdr can be 0.0, so clip it
-      const double T_ave = 1.0/(betaStar_*sdr[k]);
-
-      // compute strain rate magnitude; pull pointer within the loop to make it managable
-      double sijMag = 0.0;
-      for ( int i = 0; i < nDim; ++i ) {
-        const int offSet = nDim*i;
-        for ( int j = 0; j < nDim; ++j ) {
-          const double rateOfStrain = 0.5*(avgDudx[offSet+j] + avgDudx[nDim*j+i]);
-          sijMag += rateOfStrain*rateOfStrain;
-        }
-      }
-      sijMag = std::sqrt(2.0*sijMag);
-
-      //FIXME: Need a v2 calc for k-omega if we are going to use modified timescale...
-      //const double v2 = 1.0/0.22 * (tvisc[k] * tdr[k]) / std::max(tke[k], 1.0e-16);
-
-      //T_ave = std::max(T_ave, 6.0*std::sqrt(visc[k]/tdr[k]));
-      //T_ave = std::min(T_ave, 0.6*tke[k]/std::max(std::sqrt(6.0)*0.22*v2*sijMag,1.0e-12));
-
-      const double weightAvg = std::max(1.0 - dt/T_ave, 0.0);
-      const double weightInst = std::min(dt/T_ave, 1.0);
+      const double weightAvg = std::max(1.0 - dt/avgTime[k], 0.0);
+      const double weightInst = std::min(dt/avgTime[k], 1.0);
 
       for (int i = 0; i < nDim; ++i)
         avgVel[i] = weightAvg * avgVel[i] + weightInst * vel[i];
@@ -152,7 +130,6 @@ void ComputeTAMSSSTAveragesElemAlgorithm::execute() {
         tkeRes += (vel[i] - avgVel[i])*(vel[i] - avgVel[i]);
         for (int j = 0; j < nDim; ++j) {
           avgDudx[i*nDim + j] = weightAvg * avgDudx[i*nDim + j] + weightInst * dudx[i*nDim + j];
-          // Average strain rate tensor, used for production averaging
         }
       }
 
@@ -160,7 +137,6 @@ void ComputeTAMSSSTAveragesElemAlgorithm::execute() {
       avgPres[k] = weightAvg * avgPres[k] + weightInst * pres[k];
       avgRho[k]  = weightAvg * avgRho[k]  + weightInst * rho[k];
       avgTkeRes[k] = weightAvg * avgTkeRes[k] + weightInst * 0.5*tkeRes;
-      avgTime[k] = T_ave;
 
       // Production averaging
       double tij[nDim][nDim];

@@ -38,6 +38,7 @@ public:
   ScalarFieldType *tvisc_;
   ScalarFieldType *visc_;
   GenericFieldType *avgDudx_;  
+  ScalarFieldType *avgTime_;
 };
 
 } // namespace nalu
