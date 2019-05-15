@@ -571,9 +571,10 @@ public:
     
   virtual ~TAMSKernelHex8Mesh() {}
     
-  virtual void fill_mesh_and_init_fields(bool doPerturb = false)
+  virtual void fill_mesh_and_init_fields(
+    bool doPerturb = false, bool generateSidesets = false)
   { 
-    LowMachKernelHex8Mesh::fill_mesh_and_init_fields(doPerturb);
+    LowMachKernelHex8Mesh::fill_mesh_and_init_fields(doPerturb, generateSidesets);
     stk::mesh::field_fill(1.e-4, *visc_);
     stk::mesh::field_fill(0.3, *tvisc_);
     stk::mesh::field_fill(0.5, *avgVelocity_);
