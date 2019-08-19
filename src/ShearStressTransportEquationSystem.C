@@ -182,7 +182,7 @@ ShearStressTransportEquationSystem::solve_and_update()
 
     // FIXME: Figure out a way to do this properly in TAMS Eqn System, so that 
     //        they are decoupled
-    if (realm_.solutionOptions_->turbulenceModel_ == TAMS_SST) 
+    if (realm_.solutionOptions_->turbulenceModel_ == SST_TAMS) 
         initialize_mdot();
     
     // deal with DES option

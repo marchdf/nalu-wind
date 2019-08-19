@@ -2,6 +2,6 @@ add_sources(GlobalUnitSourceList
    UnitTestAlgorithm.C
    UnitTestLESAlgorithms.C
    UnitTestSSTAlgorithms.C
-   UnitTestTAMSSSTAlgorithms.C
+   UnitTestSSTTAMSAlgorithms.C
    UnitTestScalarOpenAlgorithm.C
 )

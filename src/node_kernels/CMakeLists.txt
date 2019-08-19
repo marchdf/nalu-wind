@@ -9,14 +9,11 @@ add_sources(GlobalSourceList
   MomentumMassBDFNodeKernel.C
   MomentumActuatorNodeKernel.C
   MomentumCoriolisNodeKernel.C
-  MomentumTAMSKEpsForcingNodeKernel.C
-  MomentumTAMSSSTForcingNodeKernel.C
+  MomentumSSTTAMSForcingNodeKernel.C
   ScalarGclNodeKernel.C
   ScalarMassBDFNodeKernel.C
-  SDRTAMSSSTNodeKernel.C
-  TDRTAMSKEpsNodeKernel.C
-  TKETAMSKEpsNodeKernel.C
-  TKETAMSSSTNodeKernel.C
+  SDRSSTTAMSNodeKernel.C
+  TKESSTTAMSNodeKernel.C
   TKERodiNodeKernel.C
   TKEKsgsNodeKernel.C
   TKESSTNodeKernel.C

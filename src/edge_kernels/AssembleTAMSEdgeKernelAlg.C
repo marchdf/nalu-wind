@@ -16,7 +16,7 @@ AssembleTAMSEdgeKernelAlg::AssembleTAMSEdgeKernelAlg(
   : AssembleEdgeKernelAlg(realm, part, eqSystem)
 {
   // Register TAMS Kernels directly
-  add_kernel<MomentumTAMSKEpsDiffEdgeKernel>(
+  add_kernel<MomentumSSTTAMSDiffEdgeKernel>(
     realm_.bulk_data(), *realm_.solutionOptions_);
 }
 

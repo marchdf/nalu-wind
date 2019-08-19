@@ -66,16 +66,15 @@ enum EquationType {
   EQ_ENTHALPY = 6,
   EQ_MESH_DISPLACEMENT = 7,
   EQ_SPEC_DISS_RATE = 8,
-  EQ_TOT_DISS_RATE = 9,
-  EQ_MASS_FRACTION = 10,
-  EQ_TAMS = 11,
-  EQ_PNG   = 12,
-  EQ_PNG_P = 13,
-  EQ_PNG_Z = 14,
-  EQ_PNG_H = 15,
-  EQ_PNG_U = 16,
-  EQ_PNG_TKE = 17, // FIXME... Last PNG managed like this..
-  EQ_WALL_DISTANCE = 18,
+  EQ_MASS_FRACTION = 9,
+  EQ_TAMS = 10,
+  EQ_PNG   = 11,
+  EQ_PNG_P = 12,
+  EQ_PNG_Z = 13,
+  EQ_PNG_H = 14,
+  EQ_PNG_U = 15,
+  EQ_PNG_TKE = 16, // FIXME... Last PNG managed like this..
+  EQ_WALL_DISTANCE = 17,
   EquationSystemType_END
 };
 
@@ -89,7 +88,6 @@ static const std::string EquationTypeMap[] = {
   "Enthalpy",
   "MeshVelocity",
   "Specific_Dissipation_Rate",
-  "Total_Dissipation_Rate",
   "Mass_Fraction",
   "TAMS",
   "PNG",
@@ -159,9 +157,7 @@ enum TurbulenceModel {
   WALE = 3,
   SST = 4,
   SST_DES = 5,
-  KEPS = 6,
-  TAMS_SST = 7,
-  TAMS_KEPS = 8,
+  SST_TAMS = 6,
   TurbulenceModel_END
 };  
 
@@ -173,9 +169,7 @@ static const std::string TurbulenceModelNames[] = {
   "wale",
   "sst",
   "sst_des",
-  "keps",
-  "tams_sst",
-  "tams_keps"};
+  "sst_tams"};
 
 enum TurbulenceModelConstant {
   TM_cMu = 0,

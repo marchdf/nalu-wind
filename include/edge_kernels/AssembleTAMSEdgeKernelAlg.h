@@ -9,7 +9,7 @@
 #define ASSEMBLETAMSEDGEKERNEL_H
 
 #include "AssembleEdgeSolverAlgorithm.h"
-#include "MomentumTAMSKEpsDiffEdgeKernel.h"
+#include "MomentumSSTTAMSDiffEdgeKernel.h"
 #include "AssembleEdgeKernelAlg.h"
 #include "nalu_make_unique.h"
 
@@ -23,8 +23,8 @@ class Realm;
 
 class AssembleTAMSEdgeKernelAlg : public AssembleEdgeKernelAlg
 {
-public:
-  AssembleTAMSEdgeKernelAlg(Realm&, stk::mesh::Part*, EquationSystem*);
+  public:
+    AssembleTAMSEdgeKernelAlg(Realm&, stk::mesh::Part*, EquationSystem*);
 };
 
 } // namespace nalu

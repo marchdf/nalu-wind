@@ -187,7 +187,6 @@ struct WallUserData : public UserData {
   Velocity u_;
   Velocity dx_;
   TurbKinEnergy tke_;
-  TotDissRate tdr_;
   MixtureFraction mixFrac_;
   MassFraction massFraction_;
   Emissivity emissivity_;
@@ -236,19 +235,17 @@ struct InflowUserData : public UserData {
   Velocity u_;
   TurbKinEnergy tke_;
   SpecDissRate sdr_;
-  TotDissRate tdr_;
   MixtureFraction mixFrac_;
   MassFraction massFraction_;
  
   bool uSpec_;
   bool tkeSpec_;
   bool sdrSpec_;
-  bool tdrSpec_;
   bool mixFracSpec_;
   bool massFractionSpec_;
   InflowUserData()
     : UserData(),
-    uSpec_(false), tkeSpec_(false), sdrSpec_(false), tdrSpec_(false), mixFracSpec_(false), massFractionSpec_(false)
+    uSpec_(false), tkeSpec_(false), sdrSpec_(false), mixFracSpec_(false), massFractionSpec_(false)
   {}
 };
 
@@ -257,7 +254,6 @@ struct OpenUserData : public UserData {
   Pressure p_;
   TurbKinEnergy tke_;
   SpecDissRate sdr_;
-  TotDissRate tdr_;
   MixtureFraction mixFrac_;
   MassFraction massFraction_;
  
@@ -265,13 +261,12 @@ struct OpenUserData : public UserData {
   bool pSpec_;
   bool tkeSpec_;
   bool sdrSpec_;
-  bool tdrSpec_;
   bool mixFracSpec_;
   bool massFractionSpec_;
 
   OpenUserData()
     : UserData(),
-      uSpec_(false), pSpec_(false), tkeSpec_(false), sdrSpec_(false), tdrSpec_(false), mixFracSpec_(false), massFractionSpec_(false)
+      uSpec_(false), pSpec_(false), tkeSpec_(false), sdrSpec_(false), mixFracSpec_(false), massFractionSpec_(false)
   {}
 };
 

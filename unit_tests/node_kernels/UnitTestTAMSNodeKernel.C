@@ -9,9 +9,9 @@
 #include "UnitTestUtils.h"
 #include "UnitTestHelperObjects.h"
 
-#include "node_kernels/SDRTAMSSSTNodeKernel.h"
-#include "node_kernels/TKETAMSSSTNodeKernel.h"
-#include "node_kernels/MomentumTAMSSSTForcingNodeKernel.h"
+#include "node_kernels/SDRSSTTAMSNodeKernel.h"
+#include "node_kernels/TKESSTTAMSNodeKernel.h"
+#include "node_kernels/MomentumSSTTAMSForcingNodeKernel.h"
 
 #ifndef KOKKOS_ENABLE_CUDA
 namespace {
@@ -86,7 +86,7 @@ TEST_F(TAMSKernelHex8Mesh, NGP_tke_tams_node)
   unit_test_utils::NodeHelperObjects helperObjs(
     bulk_, stk::topology::HEX_8, 1, partVec_[0]);
 
-  helperObjs.nodeAlg->add_kernel<sierra::nalu::TKETAMSSSTNodeKernel>(meta_, solnOpts_.get_coordinates_name());
+  helperObjs.nodeAlg->add_kernel<sierra::nalu::TKESSTTAMSNodeKernel>(meta_, solnOpts_.get_coordinates_name());
 
   helperObjs.execute();
 
@@ -120,7 +120,7 @@ TEST_F(TAMSKernelHex8Mesh, NGP_sdr_tams_node)
   unit_test_utils::NodeHelperObjects helperObjs(
     bulk_, stk::topology::HEX_8, 1, partVec_[0]);
 
-  helperObjs.nodeAlg->add_kernel<sierra::nalu::SDRTAMSSSTNodeKernel>(meta_, solnOpts_.get_coordinates_name());
+  helperObjs.nodeAlg->add_kernel<sierra::nalu::SDRSSTTAMSNodeKernel>(meta_, solnOpts_.get_coordinates_name());
 
   helperObjs.execute();
 
@@ -155,7 +155,7 @@ TEST_F(TAMSKernelHex8Mesh, NGP_tams_forcing)
   unit_test_utils::NodeHelperObjects helperObjs(
     bulk_, stk::topology::HEX_8, 3, partVec_[0]);
 
-  helperObjs.nodeAlg->add_kernel<sierra::nalu::MomentumTAMSSSTForcingNodeKernel>(
+  helperObjs.nodeAlg->add_kernel<sierra::nalu::MomentumSSTTAMSForcingNodeKernel>(
     bulk_, solnOpts_);
 
   sierra::nalu::TimeIntegrator timeIntegrator;

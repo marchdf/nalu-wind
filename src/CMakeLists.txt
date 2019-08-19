@@ -53,7 +53,6 @@ add_sources(GlobalSourceList
    AuxFunctionAlgorithm.C
    AveragingInfo.C
    BoundaryConditions.C
-   ChienKEpsilonEquationSystem.C
    ComputeABLWallFrictionVelocityAlgorithm.C
    ComputeGeometryAlgorithmDriver.C
    ComputeGeometryBoundaryAlgorithm.C
@@ -73,12 +72,9 @@ add_sources(GlobalSourceList
    ComputeSSTMaxLengthScaleElemAlgorithm.C
    ComputeTAMSAvgMdotEdgeAlgorithm.C
    ComputeTAMSAvgMdotElemAlgorithm.C
-   ComputeTAMSKEpsKratioNodeAlgorithm.C
-   ComputeTAMSKEpsAveragesNodeAlgorithm.C
-   ComputeTAMSKEpsResAdequacyNodeAlgorithm.C
-   ComputeTAMSSSTAveragesNodeAlgorithm.C
-   ComputeTAMSSSTKratioNodeAlgorithm.C
-   ComputeTAMSSSTResAdequacyNodeAlgorithm.C
+   ComputeSSTTAMSAveragesNodeAlgorithm.C
+   ComputeSSTTAMSKratioNodeAlgorithm.C
+   ComputeSSTTAMSResAdequacyNodeAlgorithm.C
    ComputeTurbKineticEnergyWallFunctionAlgorithm.C
    ComputeWallFrictionVelocityAlgorithm.C
    ComputeWallModelSDRWallAlgorithm.C
@@ -156,19 +152,14 @@ add_sources(GlobalSourceList
    SurfaceForceAndMomentWallFunctionAlgorithm.C
    TAMSEquationSystem.C
    TimeIntegrator.C
-   TotalDissipationRateChienKEpsNodeSourceSuppAlg.C
-   TotalDissipationRateEquationSystem.C
    TpetraLinearSystem.C
    TpetraLinearSystemHelpers.C
    TpetraSegregatedLinearSystem.C
-   TurbKineticEnergyChienKEpsNodeSourceSuppAlg.C
    TurbKineticEnergyEquationSystem.C
    TurbKineticEnergyKsgsBuoyantElemSuppAlg.C
-   TurbViscChienKEpsAlgorithm.C
    TurbViscKsgsAlgorithm.C
    TurbViscSSTAlgorithm.C
-   TurbViscTAMSKEpsAlgorithm.C
-   TurbViscTAMSSSTAlgorithm.C
+   TurbViscSSTTAMSAlgorithm.C
    TurbViscSmagorinskyAlgorithm.C
    TurbViscWaleAlgorithm.C
    TurbulenceAveragingPostProcessing.C

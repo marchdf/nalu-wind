@@ -10,5 +10,5 @@ add_sources(GlobalUnitSourceList
   UnitTestMomentumSymmetryEdge.C
   UnitTestScalarOpenEdge.C
 
-  UnitTestMomentumTAMSSSTDiffEdge.C
+  UnitTestMomentumSSTTAMSDiffEdge.C
   )

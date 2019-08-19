@@ -22,12 +22,9 @@
 #include <ComputeTAMSAvgMdotEdgeAlgorithm.h>
 #include <ComputeTAMSAvgMdotElemAlgorithm.h>
 #include <ComputeMetricTensorNodeAlgorithm.h>
-#include <ComputeTAMSKEpsAveragesNodeAlgorithm.h>
-#include <ComputeTAMSKEpsResAdequacyNodeAlgorithm.h>
-#include <ComputeTAMSKEpsKratioNodeAlgorithm.h>
-#include <ComputeTAMSSSTAveragesNodeAlgorithm.h>
-#include <ComputeTAMSSSTKratioNodeAlgorithm.h>
-#include <ComputeTAMSSSTResAdequacyNodeAlgorithm.h>
+#include <ComputeSSTTAMSAveragesNodeAlgorithm.h>
+#include <ComputeSSTTAMSKratioNodeAlgorithm.h>
+#include <ComputeSSTTAMSResAdequacyNodeAlgorithm.h>
 #include <DirichletBC.h>
 #include <EquationSystem.h>
 #include <EquationSystems.h>
@@ -45,12 +42,10 @@
 #include <SolutionOptions.h>
 #include <TAMSEquationSystem.h>
 #include <TimeIntegrator.h>
-#include <TurbViscChienKEpsAlgorithm.h>
 #include <TurbViscKsgsAlgorithm.h>
 #include <TurbViscSmagorinskyAlgorithm.h>
 #include <TurbViscSSTAlgorithm.h>
-#include <TurbViscTAMSSSTAlgorithm.h>
-#include <TurbViscTAMSKEpsAlgorithm.h>
+#include <TurbViscSSTTAMSAlgorithm.h>
 #include <TurbViscWaleAlgorithm.h>
 
 #include <SolverAlgorithmDriver.h>
@@ -148,11 +143,10 @@ TAMSEquationSystem::TAMSEquationSystem(EquationSystems& eqSystems)
   // push back EQ to manager
   realm_.push_equation_to_systems(this);
 
-  if (turbulenceModel_ != TAMS_SST && turbulenceModel_ != TAMS_KEPS) {
+  if (turbulenceModel_ != SST_TAMS) {
     throw std::runtime_error(
       "User has requested TAMSEqs, however, turbulence model has not been set "
-      "to tams_sst or tams_keps, the only ones supported by this equation "
-      "system currently.");
+      "to sst_tams, the only one supported by this equation system currently.");
   }
 }
 
@@ -240,20 +234,10 @@ TAMSEquationSystem::register_nodal_fields(stk::mesh::Part* part)
   stk::mesh::put_field_on_mesh(*avgResAdequacy_, *part, nullptr);
   realm_.augment_restart_variable_list("avg_res_adequacy_parameter");
 
-  //  MasterElement *meSCS =
-  //  sierra::nalu::MasterElementRepo::get_surface_master_element(theTopo);
-  //  const int numScsIp = meSCS->numIntPoints_;
-
-  //  avgMdot_ =
-  //  &(meta_data.declare_field<GenericFieldType>(stk::topology::ELEMENT_RANK,
-  //  "average_mass_flow_rate")); stk::mesh::put_field_on_mesh(*avgMdot_, *part,
-  //  numScsIp, nullptr);
-  //  realm_.augment_restart_variable_list("average_mass_flow_rate");
-
-  // delta solution for linear solver; share delta with other split systems
-  gTmp_ = &(
-    meta_data.declare_field<VectorFieldType>(stk::topology::NODE_RANK, "gTmp"));
-  stk::mesh::put_field_on_mesh(*gTmp_, *part, nDim, nullptr);
+  // For use with a projected forcing term, currently not used in SST_TAMS...
+  //gTmp_ = &(
+  //  meta_data.declare_field<VectorFieldType>(stk::topology::NODE_RANK, "gTmp"));
+  //stk::mesh::put_field_on_mesh(*gTmp_, *part, nDim, nullptr);
 }
 
 //--------------------------------------------------------------------------
@@ -265,24 +249,11 @@ TAMSEquationSystem::register_element_fields(
 {
   stk::mesh::MetaData& meta_data = realm_.meta_data();
 
-  // metric_ =
-  // &(meta_data.declare_field<GenericFieldType>(stk::topology::ELEMENT_RANK,"metric_tensor"));
-  // stk::mesh::put_field_on_mesh(*metric_, *part, nDim*nDim, nullptr);
-
-  // resAdequacy_ =
-  // &(meta_data.declare_field<ScalarFieldType>(stk::topology::ELEMENT_RANK,"resolution_adequacy_parameter"));
-  // stk::mesh::put_field_on_mesh(*resAdequacy_, *part, nullptr);
-
-  // avgResAdequacy_ =
-  // &(meta_data.declare_field<ScalarFieldType>(stk::topology::ELEMENT_RANK,"avg_res_adequacy_parameter"));
-  // stk::mesh::put_field_on_mesh(*avgResAdequacy_, *part, nullptr);
-  // realm_.augment_restart_variable_list("avg_res_adequacy_parameter");
-
   MasterElement* meSCS =
     sierra::nalu::MasterElementRepo::get_surface_master_element(theTopo);
   const int numScsIp = meSCS->num_integration_points();
 
-  NaluEnv::self().naluOutputP0() << "Mdot average added in TAMS " << std::endl;
+  NaluEnv::self().naluOutputP0() << "Elemental Mdot average added in TAMS " << std::endl;
 
   avgMdotScs_ = &(meta_data.declare_field<GenericFieldType>(
     stk::topology::ELEMENT_RANK, "average_mass_flow_rate_scs"));
@@ -296,7 +267,7 @@ TAMSEquationSystem::register_element_fields(
 void
 TAMSEquationSystem::register_edge_fields(stk::mesh::Part* part)
 {
-  NaluEnv::self().naluOutputP0() << "Edge fields added in TAMS " << std::endl;
+  NaluEnv::self().naluOutputP0() << "Edge Mdot average added in TAMS " << std::endl;
   stk::mesh::MetaData& meta_data = realm_.meta_data();
   avgMdot_ = &(meta_data.declare_field<ScalarFieldType>(
     stk::topology::EDGE_RANK, "average_mass_flow_rate"));
@@ -324,11 +295,8 @@ TAMSEquationSystem::register_interior_algorithm(stk::mesh::Part* part)
   if (it == resolutionAdequacyAlgDriver_->algMap_.end()) {
     Algorithm* theAlg = NULL;
     switch (turbulenceModel_) {
-    case TAMS_SST:
-      theAlg = new ComputeTAMSSSTResAdequacyNodeAlgorithm(realm_, part);
-      break;
-    case TAMS_KEPS:
-      theAlg = new ComputeTAMSKEpsResAdequacyNodeAlgorithm(realm_, part);
+    case SST_TAMS:
+      theAlg = new ComputeSSTTAMSResAdequacyNodeAlgorithm(realm_, part);
       break;
     default:
       throw std::runtime_error("TAMSEquationSystem: non-supported turb model");
@@ -363,11 +331,8 @@ TAMSEquationSystem::register_interior_algorithm(stk::mesh::Part* part)
   if (itav == averagingAlgDriver_->algMap_.end()) {
     Algorithm* theAlg = NULL;
     switch (turbulenceModel_) {
-    case TAMS_SST:
-      theAlg = new ComputeTAMSSSTAveragesNodeAlgorithm(realm_, part);
-      break;
-    case TAMS_KEPS:
-      theAlg = new ComputeTAMSKEpsAveragesNodeAlgorithm(realm_, part);
+    case SST_TAMS:
+      theAlg = new ComputeSSTTAMSAveragesNodeAlgorithm(realm_, part);
       break;
     default:
       throw std::runtime_error("TAMSEquationSystem: non-supported turb model");
@@ -387,11 +352,8 @@ TAMSEquationSystem::register_interior_algorithm(stk::mesh::Part* part)
   if (itkr == alphaAlgDriver_->algMap_.end()) {
     Algorithm* theAlg = NULL;
     switch (turbulenceModel_) {
-    case TAMS_SST:
-      theAlg = new ComputeTAMSSSTKratioNodeAlgorithm(realm_, part);
-      break;
-    case TAMS_KEPS:
-      theAlg = new ComputeTAMSKEpsKratioNodeAlgorithm(realm_, part);
+    case SST_TAMS:
+      theAlg = new ComputeSSTTAMSKratioNodeAlgorithm(realm_, part);
       break;
     default:
       throw std::runtime_error("TAMSEquationSystem: non-supported turb model");
@@ -429,52 +391,23 @@ TAMSEquationSystem::register_interior_algorithm(stk::mesh::Part* part)
     }
   }
 
-  // FIXME: tvisc needed for initialization only as TAMS goes before LowMach
-  //        but relies on tvisc.  Perhaps there is a way to call tvisc from
-  //        LowMach here?
+  // FIXME: tvisc needed for TAMS update, but won't be updated until LowMach solve...
+  //        Perhaps there is a way to call tvisc from LowMach here?
   std::map<AlgorithmType, Algorithm*>::iterator it_tv =
     tviscAlgDriver_->algMap_.find(algType);
   if (it_tv == tviscAlgDriver_->algMap_.end()) {
     Algorithm* theAlg = NULL;
     switch (realm_.solutionOptions_->turbulenceModel_) {
-    case KSGS:
-      theAlg = new TurbViscKsgsAlgorithm(realm_, part);
-      break;
-    case SMAGORINSKY:
-      theAlg = new TurbViscSmagorinskyAlgorithm(realm_, part);
-      break;
-    case WALE:
-      theAlg = new TurbViscWaleAlgorithm(realm_, part);
-      break;
-    case SST:
-    case SST_DES:
-      theAlg = new TurbViscSSTAlgorithm(realm_, part);
-      break;
-    case KEPS:
-      theAlg = new TurbViscChienKEpsAlgorithm(realm_, part);
-      break;
-    case TAMS_SST:
-      theAlg = new TurbViscTAMSSSTAlgorithm(realm_, part);
-      break;
-    case TAMS_KEPS:
-      theAlg = new TurbViscTAMSKEpsAlgorithm(realm_, part);
-      break;
-    default:
-      throw std::runtime_error("non-supported turb model");
+      case SST_TAMS:
+        theAlg = new TurbViscSSTTAMSAlgorithm(realm_, part);
+        break;
+      default:
+        throw std::runtime_error("non-supported turb model in TAMS Eq Sys");
     }
     tviscAlgDriver_->algMap_[algType] = theAlg;
   } else {
     it_tv->second->partVec_.push_back(part);
   }
-
-  // KernelBuilder kb(*this, *part, solverAlgDriver_->solverAlgorithmMap_,
-  // realm_.using_tensor_product_kernels());
-
-  // kb.build_topo_kernel_if_requested<TAMSForcingElemKernel>
-  //("forcing",
-  //  realm_.bulk_data(), *realm_.solutionOptions_, kb.data_prereqs());
-
-  // kb.report();
 }
 
 //--------------------------------------------------------------------------
@@ -550,8 +483,7 @@ TAMSEquationSystem::register_overset_bc()
 void
 TAMSEquationSystem::initialize()
 {
-  // solverAlgDriver_->initialize_connectivity();
-  // linsys_->finalizeLinearSystem();
+  // Nothing to do here...
 }
 
 //--------------------------------------------------------------------------
@@ -560,31 +492,7 @@ TAMSEquationSystem::initialize()
 void
 TAMSEquationSystem::reinitialize_linear_system()
 {
-  /*
-  // delete linsys
-  delete linsys_;
-
-  // delete old solver
-  const EquationType theEqID = EQ_ADAPT_PARAM;
-  LinearSolver *theSolver = NULL;
-  std::map<EquationType, LinearSolver *>::const_iterator iter
-    = realm_.root()->linearSolvers_->solvers_.find(theEqID);
-  if (iter != realm_.root()->linearSolvers_->solvers_.end()) {
-    theSolver = (*iter).second;
-    delete theSolver;
-  }
-
-  // create new solver
-  std::string solverName =
-  realm_.equationSystems_.get_solver_block_name("adaptivity_parameter");
-  LinearSolver *solver =
-  realm_.root()->linearSolvers_->create_solver(solverName, EQ_ADAPT_PARAM);
-  linsys_ = LinearSystem::create(realm_, 1, this, solver);
-
-  // initialize
-  solverAlgDriver_->initialize_connectivity();
-  linsys_->finalizeLinearSystem();
-  */
+  // Nothing to do here...
 }
 
 //--------------------------------------------------------------------------
@@ -593,52 +501,7 @@ TAMSEquationSystem::reinitialize_linear_system()
 void
 TAMSEquationSystem::solve_and_update()
 {
-
-  if (isInit_) {
-    // compute_projected_nodal_gradient();
-    // compute_metric_tensor();
-    //initialize_mdot();
-    isInit_ = false;
-  }
-
-  // FIXME: Need this to be part of TAMS so that the order of operations is
-  // right,
-  //        is there a way to turn it off in LowMach, so it's not called twice?
-  // tviscAlgDriver_->execute();
-
-  // compute_averages();
-
-  // compute_alpha();
-
-  // compute_resolution_adequacy_parameters();
-
-  // compute_avgMdot();
-
-  // TODO: Add recalculation of metric tensor if mesh changes
-
-  // Forcing poisson solve
-  // start the iteration loop
-  /*
-      for ( int k = 0; k < maxIterations_; ++k ) {
-
-      NaluEnv::self().naluOutputP0() << " " << k+1 << "/" << maxIterations_
-                      << std::setw(15) << std::right << userSuppliedName_ <<
-    std::endl;
-
-      // continuity assemble, load_complete and solve
-      assemble_and_solve(gTmp_);
-
-      // update... (Can use this if I don't need to clip, other use
-    update_and_clip... timeA = NaluEnv::self().nalu_time(); field_axpby(
-        realm_.meta_data(),
-        realm_.bulk_data(),
-        1.0, *gTmp_,
-        1.0, *forcing_,
-        realm_.get_activate_aura());
-      timeB = NaluEnv::self().nalu_time();
-      timerAssemble_ += (timeB-timeA);
-    }
-  */
+  // Nothing to do here...
 }
 
 //--------------------------------------------------------------------------
@@ -648,35 +511,11 @@ void
 TAMSEquationSystem::initial_work()
 {
   compute_metric_tensor();
-  // Need to calculate tvisc in initial work in cases where TAMS executes before
-  // LowMach to prevent NaNs in initial avgResAdeq calculation
-  // tviscAlgDriver_->execute();
 
   stk::mesh::MetaData& meta_data = realm_.meta_data();
 
-  // FIXME: Hack since setting an element field to a constant using Aux doesn't
-  // seem to work... required fields... Update: resAdeq has now been moved to a
-  // nodal quantity
-
-  // define some common selectors
-  // stk::mesh::Selector s_all_elem
-  //  = (meta_data.locally_owned_part() | meta_data.globally_shared_part())
-  //  &stk::mesh::selectField(*avgResAdequacy_);
-
-  // stk::mesh::BucketVector const& node_buckets =
-  //  realm_.get_buckets( stk::topology::ELEMENT_RANK, s_all_elem );
-  // for ( stk::mesh::BucketVector::const_iterator ib = elem_buckets.begin();
-  //      ib != elem_buckets.end() ; ++ib ) {
-  //  stk::mesh::Bucket & b = **ib ;
-  //  const stk::mesh::Bucket::size_type length = b.size();
-
-  //  double *avgResAdeq = stk::mesh::field_data(*avgResAdequacy_, b);
-
-  //  for ( stk::mesh::Bucket::size_type k = 0 ; k < length ; ++k ) {
-  //     avgResAdeq[k] = 1.0;
-  //  }
-  //}
-
+  // Initialialize avg_dudx and avg_Prod
+  // FIXME: We don't want to do this on restart...
   const int nDim = meta_data.spatial_dimension();
 
   GenericFieldType* dudx_ =
@@ -687,9 +526,6 @@ TAMSEquationSystem::initial_work()
     stk::topology::NODE_RANK, "turbulent_viscosity");
 
   ScalarFieldType& tkeNp1 = turbKinEne_->field_of_state(stk::mesh::StateNP1);
-
-  NaluEnv::self().naluOutputP0()
-    << "About to initialize avgDudx in TAMS" << std::endl;
 
   // define some common selectors
   stk::mesh::Selector s_all_nodes =
@@ -753,7 +589,7 @@ TAMSEquationSystem::initial_work()
   }
 
   compute_averages();
-  // FIXME: Had to move this to SST and KEps Eqn Systems for now since mdot is not 
+  // FIXME: Had to move this to SST Eqn Systems for now since mdot is not 
   //        able to be calculated during intial_work phase...
   //initialize_mdot();
   compute_alpha();
@@ -767,8 +603,10 @@ TAMSEquationSystem::initial_work()
 void
 TAMSEquationSystem::post_converged_work()
 {
+  // Compute TAMS terms here, since we only want to do so once per timestep
   tviscAlgDriver_->execute();
 
+  // FIXME: Assess consistency of this order of operations...
   compute_averages();
 
   compute_alpha();
