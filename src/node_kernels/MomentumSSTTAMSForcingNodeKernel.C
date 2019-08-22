@@ -20,6 +20,7 @@ MomentumSSTTAMSForcingNodeKernel::MomentumSSTTAMSForcingNodeKernel(
   const stk::mesh::BulkData& bulk, const SolutionOptions& solnOpts)
   : NGPNodeKernel<MomentumSSTTAMSForcingNodeKernel>(),
     betaStar_(solnOpts.get_turb_model_constant(TM_betaStar)),
+    forceFactor_(solnOpts.get_turb_model_constant(TM_forFac)),
     nDim_(bulk.mesh_meta_data().spatial_dimension())
 {
   const auto& meta = bulk.mesh_meta_data();
@@ -45,7 +46,6 @@ MomentumSSTTAMSForcingNodeKernel::MomentumSSTTAMSForcingNodeKernel(
   avgVelocityID_ = get_field_ordinal(meta, "average_velocity");
   avgDensityID_ = get_field_ordinal(meta, "average_density");
   avgTimeID_ = get_field_ordinal(meta, "average_time");
-  // FIXME: Need to make "avg..." a nodal quantity
   avgResAdeqID_ = get_field_ordinal(meta, "avg_res_adequacy_parameter");
 }
 
@@ -114,7 +114,7 @@ MomentumSSTTAMSForcingNodeKernel::execute(
   const double Ct = 6.0;
   const double BL_T = 1.0;
   const double BL_KOL = 1.0;
-  const double FORCING_FACTOR = 8.0;
+  const double FORCING_FACTOR = forceFactor_;
 
   const NodeKernelTraits::DblType periodicForcingLengthX = pi_;
   const NodeKernelTraits::DblType periodicForcingLengthY = 0.25;
@@ -133,7 +133,6 @@ MomentumSSTTAMSForcingNodeKernel::execute(
   T_alpha = stk::math::max(T_alpha, Ct * stk::math::sqrt(mu / eps));
   T_alpha = BL_T * T_alpha;
 
-  // FIXME: How do we properly pull the diagonal elements from Mij tensor?
   const NodeKernelTraits::DblType Mij_00 = Mij_.get(node, 0);
   const NodeKernelTraits::DblType Mij_11 = Mij_.get(node, 4);
   const NodeKernelTraits::DblType Mij_22 = Mij_.get(node, 8);
@@ -255,8 +254,6 @@ MomentumSSTTAMSForcingNodeKernel::execute(
     stk::simd::set_data(C_F, simdIndex, tmp_CF);
   }
 
-  // Since we aren't projecting, ignore scaling by dt which is done before
-  // projection and then removed...
   const NodeKernelTraits::DblType norm = C_F;
 
   // Now we determine the actual forcing field
@@ -271,7 +268,6 @@ MomentumSSTTAMSForcingNodeKernel::execute(
   rhs(0) += dualVolume * gX;
   rhs(1) += dualVolume * gY;
   rhs(2) += dualVolume * gZ;
-  // No LHS contributions
 }
 
 } // namespace nalu

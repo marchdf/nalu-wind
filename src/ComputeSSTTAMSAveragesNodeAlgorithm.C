@@ -104,12 +104,13 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
 
   // deal with state FIXME: Do i need this?  Do i need this for other fields
   // too???
-  VectorFieldType& velocityNp1 =
-    velocityRTM_->field_of_state(stk::mesh::StateNP1);
+  VectorFieldType& velocityNp1 = velocityRTM_->field_of_state(stk::mesh::StateNP1);
   ScalarFieldType& densityNp1 = density_->field_of_state(stk::mesh::StateNP1);
 
-  // select and loop through all nodes
-  stk::mesh::Selector s_all_nodes = stk::mesh::selectUnion(partVec_);
+  // fill in nodal values
+  stk::mesh::Selector s_all_nodes
+    = (meta_data.locally_owned_part() | meta_data.globally_shared_part())
+    &stk::mesh::selectField(*avgVelocity_);
 
   stk::mesh::BucketVector const& node_buckets =
     realm_.get_buckets(stk::topology::NODE_RANK, s_all_nodes);

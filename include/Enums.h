@@ -205,7 +205,8 @@ enum TurbulenceModelConstant {
   TM_sigmaK = 30,
   TM_sigmaEps = 31,
   TM_CMdeg = 32,
-  TM_END = 33
+  TM_forFac = 33,
+  TM_END = 34
 };
 
 static const std::string TurbulenceModelConstantNames[] = {
@@ -242,6 +243,7 @@ static const std::string TurbulenceModelConstantNames[] = {
   "sigmaK",
   "sigmaEps",
   "CMdeg",
+  "forcingFactor",
   "END"};
 
 enum ActuatorType {

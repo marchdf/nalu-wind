@@ -98,14 +98,13 @@ ComputeSSTTAMSResAdequacyNodeAlgorithm::execute()
 
   const double dt = realm_.get_time_step();
 
-  // fill in elemental values
-  // stk::mesh::Selector s_locally_owned_union =
-  //    meta_data.locally_owned_part() & stk::mesh::selectUnion(partVec_);
-
-  stk::mesh::Selector s_locally_owned_union = stk::mesh::selectUnion(partVec_);
+  // fill in nodal values
+  stk::mesh::Selector s_all_nodes
+    = (meta_data.locally_owned_part() | meta_data.globally_shared_part())
+    &stk::mesh::selectField(*avgResAdeq_);
 
   stk::mesh::BucketVector const& node_buckets =
-    realm_.get_buckets(stk::topology::NODE_RANK, s_locally_owned_union);
+    realm_.get_buckets(stk::topology::NODE_RANK, s_all_nodes);
   for (stk::mesh::BucketVector::const_iterator ib = node_buckets.begin();
        ib != node_buckets.end(); ++ib) {
     stk::mesh::Bucket& b = **ib;
@@ -250,11 +249,11 @@ ComputeSSTTAMSResAdequacyNodeAlgorithm::execute()
       }
 
       // Scale PM first
-      const double T_sst = avgTime[k]; // 1.0 / (betaStar_ * sdrScs);
+      const double T_sst = avgTime[k]; 
       const double v2 = 1.0 / 0.22 * (mut[k] / T_sst);
       const double PMscale = std::pow(1.5 * alpha[k] * v2, -1.5);
-      if (v2 == 0.0)
-        throw std::runtime_error("SSTTAMSResAdequacy: v2 is 0, will cause NaN");
+      if (v2 == 0.0 || T_sst == 0.0)
+        throw std::runtime_error("SSTTAMSResAdequacy: v2 or T_sst is 0, will cause NaN");
       for (unsigned i = 0; i < nDim_; ++i)
         for (unsigned j = 0; j < nDim_; ++j)
           PM[i][j] = PM[i][j] * PMscale;
@@ -262,17 +261,12 @@ ComputeSSTTAMSResAdequacyNodeAlgorithm::execute()
       // FIXME: PM is not symmetric
       EigenDecomposition::unsym_matrix_force_sym<double>(PM, Q, D);
 
-      const double maxPM = std::max(
-        std::abs(D[0][0]), std::max(std::abs(D[1][1]), std::abs(D[2][2])));
-
-      // tmpFile << coords[0] << " " << coords[1] << " " << coords[2] << " " <<
-      // maxPM << " "<< T_sst << " " << v2 << " " << PM[0][0] << " " <<
-      // p_Psgs[0]
-      // << " " << p_tau[0] << " " << alpha[k] << " " << mut[k] << " " <<
-      // epsilon13 << std::endl;
+      const double maxPM = std::max(std::abs(D[0][0]), 
+                                    std::max(std::abs(D[1][1]), std::abs(D[2][2])));
 
       // Update the instantaneous resAdeq field
       resAdeq[k] = maxPM;
+
       // FIXME: Limiters as in CDP...
       resAdeq[k] = std::min(resAdeq[k], 30.0);
 

@@ -38,6 +38,7 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::MomentumSSTTAMSForcingElemKernel(
     viscosity_(viscosity->mesh_meta_data_ordinal()),
     turbViscosity_(turbViscosity->mesh_meta_data_ordinal()),
     betaStar_(solnOpts.get_turb_model_constant(TM_betaStar)),
+    forceFactor_(solnOpts..get_turb_model_constant(TM_forFac)),
     ipNodeMap_(sierra::nalu::MasterElementRepo::get_volume_master_element(
                  AlgTraits::topo_)
                  ->ipNodeMap())
@@ -215,7 +216,7 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
     const double Ct = 6.0;
     const double BL_T = 1.0;
     const double BL_KOL = 1.0;
-    const double FORCING_FACTOR = 8.0;
+    const double FORCING_FACTOR = forceFactor_;
 
     const DoubleType periodicForcingLengthX = pi_;
     const DoubleType periodicForcingLengthY = 0.25;
@@ -270,11 +271,6 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
       tmp = std::floor(tmpN / tmpD + 0.5);
       stk::simd::set_data(ratioZ, simdIndex, tmp);
     }
-    // const DoubleType ratioX =
-    // stk::math::floor(periodicForcingLengthX/clipLengthX + 0.5); const
-    // DoubleType ratioY = stk::math::floor(periodicForcingLengthY/clipLengthY +
-    // 0.5); const DoubleType ratioZ =
-    // stk::math::floor(periodicForcingLengthZ/clipLengthZ + 0.5);
 
     const DoubleType denomX = periodicForcingLengthX / ratioX;
     const DoubleType denomY = periodicForcingLengthY / ratioY;
@@ -343,10 +339,6 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
       }
       stk::simd::set_data(Sa, simdIndex, tmp_Sa);
     }
-    // stk::math::if_then_else(a_sign < 0.0,
-    //      stk::math::if_then_else_zero(alphaScs <= a_kol, Sa = Sa -
-    //      (1.0+a_kol-alphaScs)*a_sign), stk::math::if_then_else_zero(alphaScs
-    //      >= 1.0, Sa = Sa - alphaScs*a_sign));
 
     const DoubleType fd_temp = avgResAdeqScs;
 
@@ -367,37 +359,23 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
         tmp_CF = 0.0;
       stk::simd::set_data(C_F, simdIndex, tmp_CF);
     }
-    // stk::math::if_then_else((fd_temp < 1.0) && (prod_r >= 0.0), C_F = -1.0 *
-    // F_target * Sa, C_F = 0.0);
 
-    // Only use the dt_ in the projection
-    const DoubleType norm = C_F; //* dt_;
+    const DoubleType norm = C_F; 
 
     // Now we determine the actual forcing field
     DoubleType gX = norm * hX;
     DoubleType gY = norm * hY;
     DoubleType gZ = norm * hZ;
 
-    if ((step_ % 1000000) == 0) {
-      tmpFile << w_coordScs[0] << w_coordScs[1] << w_coordScs[2] << gX << gY
-              << gZ << a_sign << a_kol << alphaScs << tkeScs << epsScs << prod_r
-              << fd_temp << norm << std::endl;
-    }
-
-    // g_i is not divergence free, so we must solve a Poisson equation
-    // rhs = G * normal * area;
-    // lhs = grad operator * normal * area;
-
     // TODO: Assess viability of first approach where we don't solve a poisson
     // problem and allow the field be divergent, which should get projected out
-    // anyway This means we only have a contribution to the RHS here
+    // anyway. This means we only have a contribution to the RHS here
     const DoubleType scV = v_scv_volume(ip);
     const int nnNdim = nearestNode * AlgTraits::nDim_;
-    // for (int j = 0; j < AlgTraits::nDim_; j++_ {
+
     rhs(nnNdim + 0) += gX * scV;
     rhs(nnNdim + 1) += gY * scV;
     rhs(nnNdim + 2) += gZ * scV;
-    //}
   }
 }
 

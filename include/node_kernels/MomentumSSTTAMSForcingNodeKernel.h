@@ -74,6 +74,7 @@ private:
   unsigned avgResAdeqID_{stk::mesh::InvalidOrdinal};
 
   const double betaStar_;
+  const double forceFactor_;
   const int nDim_;
 
   double pi_;
