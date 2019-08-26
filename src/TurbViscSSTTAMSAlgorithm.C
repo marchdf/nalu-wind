@@ -24,7 +24,7 @@ namespace nalu {
 //==========================================================================
 // Class Definition
 //==========================================================================
-// TurbViscSSTTAMSAlgorithm - compute tvisc for Smagorinsky model
+// TurbViscSSTTAMSAlgorithm - compute tvisc for SST with hybrid TAMS model 
 //==========================================================================
 //--------------------------------------------------------------------------
 //-------- constructor -----------------------------------------------------
@@ -40,8 +40,7 @@ TurbViscSSTTAMSAlgorithm::TurbViscSSTTAMSAlgorithm(
     sdr_(NULL),
     minDistance_(NULL),
     dudx_(NULL),
-    tvisc_(NULL),
-    avgTime_(NULL)
+    tvisc_(NULL)
 {
   // 2003 variant; basically, sijMag replaces vorticityMag
   stk::mesh::MetaData& meta_data = realm_.meta_data();
@@ -59,8 +58,6 @@ TurbViscSSTTAMSAlgorithm::TurbViscSSTTAMSAlgorithm(
     stk::topology::NODE_RANK, "average_dudx");
   tvisc_ = meta_data.get_field<ScalarFieldType>(
     stk::topology::NODE_RANK, "turbulent_viscosity");
-  avgTime_ = meta_data.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "average_time");
 }
 
 //--------------------------------------------------------------------------
@@ -92,7 +89,6 @@ TurbViscSSTTAMSAlgorithm::execute()
     const double* sdr = stk::mesh::field_data(*sdr_, b);
     const double* minD = stk::mesh::field_data(*minDistance_, b);
     double* tvisc = stk::mesh::field_data(*tvisc_, b);
-    double* avgTime = stk::mesh::field_data(*avgTime_, b);
 
     for (stk::mesh::Bucket::size_type k = 0; k < length; ++k) {
 
@@ -119,7 +115,6 @@ TurbViscSSTTAMSAlgorithm::execute()
 
       tvisc[k] =
         aOne_ * rho[k] * tke[k] / std::max(aOne_ * sdr[k], sijMag * fTwo);
-      avgTime[k] = 1.0 / (betaStar_ * sdr[k]);
     }
   }
 }

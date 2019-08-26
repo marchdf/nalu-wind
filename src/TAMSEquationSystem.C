@@ -111,7 +111,6 @@ TAMSEquationSystem::TAMSEquationSystem(EquationSystems& eqSystems)
   : EquationSystem(eqSystems, "TAMSEQS", "time_averaged_model_split"),
     managePNG_(realm_.get_consistent_mass_matrix_png("adaptivity_parameter")),
     avgVelocity_(NULL),
-    avgPressure_(NULL),
     avgDensity_(NULL),
     avgTkeResolved_(NULL),
     avgDudx_(NULL),
@@ -189,11 +188,6 @@ TAMSEquationSystem::register_nodal_fields(stk::mesh::Part* part)
     stk::topology::NODE_RANK, "average_velocity"));
   stk::mesh::put_field_on_mesh(*avgVelocity_, *part, nDim, nullptr);
   realm_.augment_restart_variable_list("average_velocity");
-
-  avgPressure_ = &(meta_data.declare_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "average_pressure"));
-  stk::mesh::put_field_on_mesh(*avgPressure_, *part, nullptr);
-  realm_.augment_restart_variable_list("average_pressure");
 
   avgDensity_ = &(meta_data.declare_field<ScalarFieldType>(
     stk::topology::NODE_RANK, "average_density"));

@@ -28,7 +28,7 @@ namespace nalu {
 //==========================================================================
 // Class Definition
 //==========================================================================
-// ComputeSSTTAMSAveragesNodeAlgorithm - Metric Tensor
+// ComputeSSTTAMSAveragesNodeAlgorithm - TAMS average quantities for SST 
 //==========================================================================
 //--------------------------------------------------------------------------
 //-------- constructor -----------------------------------------------------
@@ -43,29 +43,28 @@ ComputeSSTTAMSAveragesNodeAlgorithm::ComputeSSTTAMSAveragesNodeAlgorithm(
   stk::mesh::MetaData& meta_data = realm_.meta_data();
 
   // instantaneous quantities
-  if (meshMotion_)
-    velocityRTM_ = meta_data.get_field<VectorFieldType>(
-      stk::topology::NODE_RANK, "velocity_rtm");
-  else
+  if (meshMotion_) {
+   throw std::runtime_error("SSTTAMSAverages: TAMS is not set up to handle mesh motion yet");  
+   //velocityRTM_ = meta_data.get_field<VectorFieldType>(
+   //  stk::topology::NODE_RANK, "velocity_rtm");
+  } 
+  else {
     velocityRTM_ = meta_data.get_field<VectorFieldType>(
       stk::topology::NODE_RANK, "velocity");
-  pressure_ =
-    meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "pressure");
-  density_ =
-    meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "density");
+  }
+  density_ = meta_data.get_field<ScalarFieldType>(
+    stk::topology::NODE_RANK, "density");
+  dudx_ = meta_data.get_field<GenericFieldType>(
+    stk::topology::NODE_RANK, "dudx");
+
+  // average quantities
+  // FIXME: Need to configure averages to work with mesh motion
   turbKineticEnergy_ = meta_data.get_field<ScalarFieldType>(
     stk::topology::NODE_RANK, "turbulent_ke");
   specDissipationRate_ = meta_data.get_field<ScalarFieldType>(
     stk::topology::NODE_RANK, "specific_dissipation_rate");
-  dudx_ =
-    meta_data.get_field<GenericFieldType>(stk::topology::NODE_RANK, "dudx");
-
-  // average quantities
-  // FIXME: Do i need a if statement for mesh motion for the average too??
   avgVelocity_ = meta_data.get_field<VectorFieldType>(
     stk::topology::NODE_RANK, "average_velocity");
-  avgPress_ = meta_data.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "average_pressure");
   avgDensity_ = meta_data.get_field<ScalarFieldType>(
     stk::topology::NODE_RANK, "average_density");
   avgDudx_ = meta_data.get_field<GenericFieldType>(
@@ -78,12 +77,12 @@ ComputeSSTTAMSAveragesNodeAlgorithm::ComputeSSTTAMSAveragesNodeAlgorithm(
     stk::topology::NODE_RANK, "average_time");
 
   // Other quantities
-  visc_ =
-    meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "viscosity");
+  visc_ = meta_data.get_field<ScalarFieldType>(
+    stk::topology::NODE_RANK, "viscosity");
   tvisc_ = meta_data.get_field<ScalarFieldType>(
     stk::topology::NODE_RANK, "turbulent_viscosity");
-  alpha_ =
-    meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "k_ratio");
+  alpha_ = meta_data.get_field<ScalarFieldType>(
+    stk::topology::NODE_RANK, "k_ratio");
 }
 
 //--------------------------------------------------------------------------
@@ -92,20 +91,19 @@ ComputeSSTTAMSAveragesNodeAlgorithm::ComputeSSTTAMSAveragesNodeAlgorithm(
 void
 ComputeSSTTAMSAveragesNodeAlgorithm::execute()
 {
-
   stk::mesh::MetaData& meta_data = realm_.meta_data();
 
   const int nDim = meta_data.spatial_dimension();
 
-  NaluEnv::self().naluOutputP0() << "TAMS Averaging..." << std::endl;
-
   // time step
   const double dt = realm_.get_time_step();
 
-  // deal with state FIXME: Do i need this?  Do i need this for other fields
-  // too???
+  // deal with state 
+  // FIXME: Do i need this? is StateNP1 the default? 
   VectorFieldType& velocityNp1 = velocityRTM_->field_of_state(stk::mesh::StateNP1);
   ScalarFieldType& densityNp1 = density_->field_of_state(stk::mesh::StateNP1);
+  //ScalarFieldType& tkeNp1 = turbKineticEnergy_->field_of_state(stk::mesh::StateNP1);
+  //ScalarFieldType& tdrNp1 = specDissipationRate_->field_of_state(stk::mesh::StateNP1);
 
   // fill in nodal values
   stk::mesh::Selector s_all_nodes
@@ -120,10 +118,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
     const stk::mesh::Bucket::size_type length = b.size();
 
     // get instantaneous field data
-    const double* pres = stk::mesh::field_data(*pressure_, b);
     const double* rho = stk::mesh::field_data(densityNp1, b);
-    const double* tke = stk::mesh::field_data(*turbKineticEnergy_, b);
-    const double* sdr = stk::mesh::field_data(*specDissipationRate_, b);
 
     // get other field data
     const double* tvisc = stk::mesh::field_data(*tvisc_, b);
@@ -131,7 +126,8 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
     const double* alpha = stk::mesh::field_data(*alpha_, b);
 
     // get average field data
-    double* avgPres = stk::mesh::field_data(*avgPress_, b);
+    const double* tke = stk::mesh::field_data(*turbKineticEnergy_, b);
+    const double* sdr = stk::mesh::field_data(*specDissipationRate_, b);
     double* avgRho = stk::mesh::field_data(*avgDensity_, b);
     double* avgProd = stk::mesh::field_data(*avgProd_, b);
     double* avgTkeRes = stk::mesh::field_data(*avgTkeRes_, b);
@@ -144,6 +140,10 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       double* avgVel = stk::mesh::field_data(*avgVelocity_, b[k]);
       double* avgDudx = stk::mesh::field_data(*avgDudx_, b[k]);
 
+      // store RANS time scale
+      avgTime[k] = 1.0 / (betaStar_ * sdr[k]);
+
+      // causal time average ODE: d<phi>/dt = 1/avgTime * (phi - <phi>)
       const double weightAvg = std::max(1.0 - dt / avgTime[k], 0.0);
       const double weightInst = std::min(dt / avgTime[k], 1.0);
 
@@ -159,8 +159,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
         }
       }
 
-      // FIXME: Should I be doing Favre averaging?????
-      avgPres[k] = weightAvg * avgPres[k] + weightInst * pres[k];
+      // TODO: Do I need density weighted averaging when density varies?
       avgRho[k] = weightAvg * avgRho[k] + weightInst * rho[k];
       avgTkeRes[k] = weightAvg * avgTkeRes[k] + weightInst * 0.5 * tkeRes;
 
@@ -168,11 +167,11 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       double tij[nDim][nDim];
       for (int i = 0; i < nDim; ++i) {
         for (int j = 0; j < nDim; ++j) {
-          const double avgSij =
-            0.5 * (avgDudx[i * nDim + j] + avgDudx[j * nDim + i]);
+          const double avgSij = 0.5 * (avgDudx[i * nDim + j] + 
+                                       avgDudx[j * nDim + i]);
           tij[i][j] = 2.0 * alpha[k] * tvisc[k] * avgSij;
         }
-        tij[i][i] -= 2.0 / 3.0 * alpha[k] * tke[k];
+        tij[i][i] -= 2.0 / 3.0 * alpha[k] * tke[k] * avgRho[k];
       }
 
       double Pij[nDim][nDim];
@@ -187,6 +186,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
         }
       }
 
+      // FIXME: I think we need a rho in here?
       double P_res = 0.0;
       for (int i = 0; i < nDim; ++i) {
         for (int j = 0; j < nDim; ++j) {
@@ -201,7 +201,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
 
       instProd -= P_res;
 
-      // FIXME: Need a different averaging timescale for production...
+      // TODO: Allow for a different averaging timescale for production
       avgProd[k] = weightAvg * avgProd[k] + weightInst * instProd;
     }
   }
