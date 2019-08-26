@@ -123,7 +123,6 @@ TAMSEquationSystem::TAMSEquationSystem(EquationSystems& eqSystems)
     avgMdot_(NULL),
     gTmp_(NULL),
     metricTensorAlgDriver_(new AlgorithmDriver(realm_)),
-    resolutionAdequacyAlgDriver_(new AlgorithmDriver(realm_)),
     averagingAlgDriver_(new AlgorithmDriver(realm_)),
     avgMdotAlgDriver_(new AlgorithmDriver(realm_)),
     tviscAlgDriver_(new AlgorithmDriver(realm_)),
@@ -156,8 +155,6 @@ TAMSEquationSystem::~TAMSEquationSystem()
     delete metricTensorAlgDriver_;
   if (NULL != averagingAlgDriver_)
     delete averagingAlgDriver_;
-  if (NULL != resolutionAdequacyAlgDriver_)
-    delete resolutionAdequacyAlgDriver_;
   if (NULL != avgMdotAlgDriver_)
     delete avgMdotAlgDriver_;
   if (NULL != tviscAlgDriver_)
@@ -274,27 +271,6 @@ TAMSEquationSystem::register_interior_algorithm(stk::mesh::Part* part)
 
   // types of algorithms
   const AlgorithmType algType = INTERIOR;
-
-  // resolution adequacy algorithm
-  if (NULL == resolutionAdequacyAlgDriver_)
-    resolutionAdequacyAlgDriver_ = new AlgorithmDriver(realm_);
-
-  std::map<AlgorithmType, Algorithm*>::iterator it =
-    resolutionAdequacyAlgDriver_->algMap_.find(algType);
-
-  if (it == resolutionAdequacyAlgDriver_->algMap_.end()) {
-    Algorithm* theAlg = NULL;
-    switch (turbulenceModel_) {
-    case SST_TAMS:
-      theAlg = new ComputeSSTTAMSResAdequacyNodeAlgorithm(realm_, part);
-      break;
-    default:
-      throw std::runtime_error("TAMSEquationSystem: non-supported turb model");
-    }
-    resolutionAdequacyAlgDriver_->algMap_[algType] = theAlg;
-  } else {
-    it->second->partVec_.push_back(part);
-  }
 
   // metric tensor algorithm
   if (NULL == metricTensorAlgDriver_)
@@ -561,7 +537,6 @@ TAMSEquationSystem::initial_work()
   // FIXME: Had to move this to SST Eqn Systems for now since mdot is not 
   //        able to be calculated during intial_work phase...
   //initialize_mdot();
-  compute_resolution_adequacy_parameters();
   //compute_avgMdot();
 }
 
@@ -576,8 +551,6 @@ TAMSEquationSystem::post_converged_work()
 
   // FIXME: Assess consistency of this order of operations...
   compute_averages();
-
-  compute_resolution_adequacy_parameters();
 
   compute_avgMdot();
 }
@@ -649,16 +622,6 @@ TAMSEquationSystem::initialize_mdot()
       }
     }
   }
-}
-
-//--------------------------------------------------------------------------
-//-------- compute_resolution_adequacy_parameters() ------------------------
-//--------------------------------------------------------------------------
-void
-TAMSEquationSystem::compute_resolution_adequacy_parameters()
-{
-  if (NULL != resolutionAdequacyAlgDriver_)
-    resolutionAdequacyAlgDriver_->execute();
 }
 
 //--------------------------------------------------------------------------

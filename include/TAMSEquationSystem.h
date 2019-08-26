@@ -73,7 +73,6 @@ public:
   void initial_work();
   void post_converged_work();
   void initialize_mdot();
-  void compute_resolution_adequacy_parameters();
   void compute_metric_tensor();
   void compute_averages();
   void compute_avgMdot();
@@ -97,7 +96,6 @@ public:
   VectorFieldType* gTmp_;
 
   AlgorithmDriver* metricTensorAlgDriver_;
-  AlgorithmDriver* resolutionAdequacyAlgDriver_;
   AlgorithmDriver* averagingAlgDriver_;
   AlgorithmDriver* avgMdotAlgDriver_;
   AlgorithmDriver* tviscAlgDriver_;

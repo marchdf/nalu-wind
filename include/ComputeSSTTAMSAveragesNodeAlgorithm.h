@@ -24,6 +24,7 @@ public:
   virtual void execute();
 
   const double betaStar_;
+  const double CMdeg_;
   const bool meshMotion_;
 
   VectorFieldType* velocityRTM_{nullptr};
@@ -42,6 +43,14 @@ public:
   ScalarFieldType* visc_{nullptr};
   ScalarFieldType* tvisc_{nullptr};
   ScalarFieldType* alpha_{nullptr};
+  ScalarFieldType* resAdeq_{nullptr};
+  ScalarFieldType* avgResAdeq_{nullptr};
+  GenericFieldType* Mij_{nullptr};
+
+  std::vector<double> tauSGET;
+  std::vector<double> tauSGRS;
+  std::vector<double> tau;
+  std::vector<double> Psgs;
 };
 
 } // namespace nalu

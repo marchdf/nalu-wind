@@ -8,10 +8,12 @@
 // nalu
 #include <Algorithm.h>
 #include <ComputeSSTTAMSAveragesNodeAlgorithm.h>
+#include <EigenDecomposition.h>
 
 #include <FieldTypeDef.h>
 #include <Realm.h>
 #include <master_element/MasterElement.h>
+#include <master_element/MasterElementFactory.h>
 #include <NaluEnv.h>
 
 // stk_mesh/base/fem
@@ -21,6 +23,8 @@
 #include <stk_mesh/base/GetBuckets.hpp>
 #include <stk_mesh/base/MetaData.hpp>
 #include <stk_mesh/base/Part.hpp>
+
+#include "utils/TAMSUtils.h"
 
 namespace sierra {
 namespace nalu {
@@ -37,10 +41,14 @@ ComputeSSTTAMSAveragesNodeAlgorithm::ComputeSSTTAMSAveragesNodeAlgorithm(
   Realm& realm, stk::mesh::Part* part)
   : Algorithm(realm, part),
     betaStar_(realm.get_turb_model_constant(TM_betaStar)),
+    CMdeg_(realm.get_turb_model_constant(TM_CMdeg)),
     meshMotion_(realm_.does_mesh_move())
 {
   // save off data
   stk::mesh::MetaData& meta_data = realm_.meta_data();
+
+  coordinates_ = metaData.get_field<VectorFieldType>(
+    stk::topology::NODE_RANK, realm_.get_coordinates_name());
 
   // instantaneous quantities
   if (meshMotion_) {
@@ -56,6 +64,8 @@ ComputeSSTTAMSAveragesNodeAlgorithm::ComputeSSTTAMSAveragesNodeAlgorithm(
     stk::topology::NODE_RANK, "density");
   dudx_ = meta_data.get_field<GenericFieldType>(
     stk::topology::NODE_RANK, "dudx");
+  resAdeq_ = metaData.get_field<ScalarFieldType>(
+    stk::topology::NODE_RANK, "resolution_adequacy_parameter");
 
   // average quantities
   // FIXME: Need to configure averages to work with mesh motion
@@ -75,6 +85,8 @@ ComputeSSTTAMSAveragesNodeAlgorithm::ComputeSSTTAMSAveragesNodeAlgorithm(
     stk::topology::NODE_RANK, "average_production");
   avgTime_ = meta_data.get_field<ScalarFieldType>(
     stk::topology::NODE_RANK, "average_time");
+  avgResAdeq_ = metaData.get_field<ScalarFieldType>(
+    stk::topology::NODE_RANK, "avg_res_adequacy_parameter");
 
   // Other quantities
   visc_ = meta_data.get_field<ScalarFieldType>(
@@ -83,6 +95,8 @@ ComputeSSTTAMSAveragesNodeAlgorithm::ComputeSSTTAMSAveragesNodeAlgorithm(
     stk::topology::NODE_RANK, "turbulent_viscosity");
   alpha_ = meta_data.get_field<ScalarFieldType>(
     stk::topology::NODE_RANK, "k_ratio");
+  Mij_ = metaData.get_field<GenericFieldType>(
+    stk::topology::NODE_RANK, "metric_tensor");
 }
 
 //--------------------------------------------------------------------------
@@ -97,6 +111,17 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
 
   // time step
   const double dt = realm_.get_time_step();
+
+  tauSGET.resize(nDim_ * nDim_);
+  tauSGRS.resize(nDim_ * nDim_);
+  tau.resize(nDim_ * nDim_);
+  Psgs.resize(nDim_ * nDim_);
+
+  // pointers to the local storage vectors
+  double* p_tauSGET = &tauSGET[0];
+  double* p_tauSGRS = &tauSGRS[0];
+  double* p_tau = &tau[0];
+  double* p_Psgs = &Psgs[0];
 
   // deal with state 
   // FIXME: Do i need this? is StateNP1 the default? 
@@ -132,6 +157,10 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
     double* avgProd = stk::mesh::field_data(*avgProd_, b);
     double* avgTkeRes = stk::mesh::field_data(*avgTkeRes_, b);
     double* avgTime = stk::mesh::field_data(*avgTime_, b);
+
+    // Get resolution adequacy field for filling
+    double* resAdeq = stk::mesh::field_data(*resAdeq_, b);
+    double* avgResAdeq = stk::mesh::field_data(*avgResAdeq_, b);
 
     for (stk::mesh::Bucket::size_type k = 0; k < length; ++k) {
       // get velocity field data
@@ -219,6 +248,137 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       // TODO: Allow for a different averaging timescale for production
       avgProd[k] = weightAvg * avgProd[k] + weightInst * instProd;
 
+      // Resolution adequacy parameter
+      // pointers to real data
+      const double* coords = stk::mesh::field_data(*coordinates_, b[k]);
+
+      // get Mij field_data
+      const double* p_Mij = stk::mesh::field_data(*Mij_, b[k]);
+
+      double Mij[3][3];
+      double PM[3][3];
+      double Q[3][3];
+      double D[3][3];
+
+      for (unsigned i = 0; i < nDim_; i++) {
+        const int iNdim = i * nDim_;
+        for (unsigned j = 0; j < nDim_; j++) {
+          Mij[i][j] = p_Mij[iNdim + j];
+        }
+      }
+
+      // Eigenvalue decomposition of metric tensor
+      EigenDecomposition::sym_diagonalize<double>(Mij, Q, D);
+
+      // initialize M43 to 0
+      double M43[3][3];
+      for (unsigned i = 0; i < nDim_; ++i)
+        for (unsigned j = 0; j < nDim_; ++j)
+          M43[i][j] = 0.0;
+
+      const double fourThirds = 4.0 / 3.0;
+
+      for (unsigned l = 0; l < nDim_; l++) {
+        const double D43 = stk::math::pow(D[l][l], fourThirds);
+        for (unsigned i = 0; i < nDim_; i++) {
+          for (unsigned j = 0; j < nDim_; j++) {
+            M43[i][j] += Q[i][l] * Q[j][l] * D43;
+          }
+        }
+      }
+
+      // zeroing out tesnors
+      for (unsigned i = 0; i < nDim_; ++i) {
+        for (unsigned j = 0; j < nDim_; ++j) {
+          p_tauSGRS[i * nDim_ + j] = 0.0;
+          p_tauSGET[i * nDim_ + j] = 0.0;
+          p_tau[i * nDim_ + j] = 0.0;
+          p_Psgs[i * nDim_ + j] = 0.0;
+        }
+      }
+
+      const double CM43 = tams_utils::get_M43_constant<double, 3>(D, CMdeg_);
+
+      const double epsilon13 =
+        stk::math::pow(betaStar_ * tke[k] * sdr[k], 1.0 / 3.0);
+
+      for (unsigned i = 0; i < nDim_; ++i) {
+
+        for (unsigned j = 0; j < nDim_; ++j) {
+          // Calculate tauSGRS_ij = 2*alpha*nu_t*<S_ij> where nu_t comes from
+          // the SST model and <S_ij> is the strain rate tensor based on the
+          // mean quantities... i.e this is (tauSGRS = alpha*tauSST)
+          // The 2 in the coeff cancels with the 1/2 in the strain rate tensor
+          const double coeffSGRS = alpha[k] * tvisc[k];
+          p_tauSGRS[i * nDim_ + j] = avgDudx[i * nDim_ + j] + avgDudx[j * nDim_ + i];
+          p_tauSGRS[i * nDim_ + j] *= coeffSGRS;
+
+          for (unsigned l = 0; l < nDim_; ++l) {
+            // Calculate tauSGET_ij = CM43*<eps>^(1/3)*(M43_ik*dkuj' +
+            // M43_jkdkui') where <eps> is the mean dissipation backed out from
+            // the SST mean k and mean omega and dkuj' is the fluctuating
+            // velocity gradients.
+            const double coeffSGET = avgRho[k] * CM43 * epsilon13;
+            const double fluctDudx_jl = dudx[j * nDim_ + l] - avgDudx[j * nDim_ + l];
+            const double fluctDudx_il = dudx[i * nDim_ + l] - avgDudx[i * nDim_ + l];
+            p_tauSGET[i * nDim_ + j] +=
+              coeffSGET * (M43[i][l] * fluctDudx_jl + M43[j][l] * fluctDudx_il);
+          }
+        }
+      }
+
+      // Calculate the full subgrid stress including the isotropic portion
+      // FIXME: Do i need a rho in here?
+      for (unsigned i = 0; i < nDim_; ++i)
+        for (unsigned j = 0; j < nDim_; ++j)
+          p_tau[i * nDim_ + j] = p_tauSGRS[i * nDim_ + j] + p_tauSGET[i * nDim_ + j] -
+            ((i == j) ? 2.0 / 3.0 * alpha[k] * tke[k] : 0.0);
+
+      // Calculate the SGS production PSGS_ij = 1/2(tau_ik*djuk + tau_jk*diuk)
+      // where diuj is the instantaneous velocity gradients
+      for (unsigned i = 0; i < nDim_; ++i) {
+        for (unsigned j = 0; j < nDim_; ++j) {
+          for (unsigned l = 0; l < nDim_; ++l) {
+            p_Psgs[i * nDim_ + j] += p_tau[i * nDim_ + l] * dudx[l * nDim_ + j] +
+                                     p_tau[j * nDim_ + l] * dudx[l * nDim_ + i];
+          }
+          p_Psgs[i * nDim_ + j] *= 0.5;
+        }
+      }
+
+      for (unsigned i = 0; i < nDim_; ++i) {
+        for (unsigned j = 0; j < nDim_; ++j) {
+          PM[i][j] = 0.0;
+          for (unsigned l = 0; l < nDim_; ++l)
+            PM[i][j] += p_Psgs[i * nDim_ + l] * Mij[l][j];
+        }
+      }
+
+      // Scale PM first
+      const double v2 = 1.0 / 0.22 * (tvisc[k] / avgTime[k]);
+      const double PMscale = std::pow(1.5 * alpha[k] * v2, -1.5);
+      if (v2 == 0.0 || T_sst == 0.0)
+        throw std::runtime_error("SSTTAMSParams: v2 or avgTime is 0, will cause NaN");
+      for (unsigned i = 0; i < nDim_; ++i)
+        for (unsigned j = 0; j < nDim_; ++j)
+          PM[i][j] = PM[i][j] * PMscale;
+
+      // FIXME: PM is not symmetric
+      EigenDecomposition::unsym_matrix_force_sym<double>(PM, Q, D);
+
+      const double maxPM = std::max(std::abs(D[0][0]),
+                                    std::max(std::abs(D[1][1]), std::abs(D[2][2])));
+
+      // Update the instantaneous resAdeq field
+      resAdeq[k] = maxPM;
+
+      // FIXME: Limiters as in CDP...
+      resAdeq[k] = std::min(resAdeq[k], 30.0);
+
+      if (alpha[k] >= 1.0)
+        resAdeq[k] = std::min(resAdeq[k], 1.0);
+
+      avgResAdeq[k] = weightAvg * avgResAdeq[k] + weightInst * resAdeq[k];
     }
   }
 }
