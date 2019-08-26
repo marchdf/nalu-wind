@@ -23,7 +23,6 @@
 #include <ComputeTAMSAvgMdotElemAlgorithm.h>
 #include <ComputeMetricTensorNodeAlgorithm.h>
 #include <ComputeSSTTAMSAveragesNodeAlgorithm.h>
-#include <ComputeSSTTAMSKratioNodeAlgorithm.h>
 #include <ComputeSSTTAMSResAdequacyNodeAlgorithm.h>
 #include <DirichletBC.h>
 #include <EquationSystem.h>
@@ -126,7 +125,6 @@ TAMSEquationSystem::TAMSEquationSystem(EquationSystems& eqSystems)
     metricTensorAlgDriver_(new AlgorithmDriver(realm_)),
     resolutionAdequacyAlgDriver_(new AlgorithmDriver(realm_)),
     averagingAlgDriver_(new AlgorithmDriver(realm_)),
-    alphaAlgDriver_(new AlgorithmDriver(realm_)),
     avgMdotAlgDriver_(new AlgorithmDriver(realm_)),
     tviscAlgDriver_(new AlgorithmDriver(realm_)),
     turbulenceModel_(realm_.solutionOptions_->turbulenceModel_),
@@ -158,8 +156,6 @@ TAMSEquationSystem::~TAMSEquationSystem()
     delete metricTensorAlgDriver_;
   if (NULL != averagingAlgDriver_)
     delete averagingAlgDriver_;
-  if (NULL != alphaAlgDriver_)
-    delete alphaAlgDriver_;
   if (NULL != resolutionAdequacyAlgDriver_)
     delete resolutionAdequacyAlgDriver_;
   if (NULL != avgMdotAlgDriver_)
@@ -334,27 +330,6 @@ TAMSEquationSystem::register_interior_algorithm(stk::mesh::Part* part)
     averagingAlgDriver_->algMap_[algType] = theAlg;
   } else {
     itav->second->partVec_.push_back(part);
-  }
-
-  // alpha algorithm
-  if (NULL == alphaAlgDriver_)
-    alphaAlgDriver_ = new AlgorithmDriver(realm_);
-
-  std::map<AlgorithmType, Algorithm*>::iterator itkr =
-    alphaAlgDriver_->algMap_.find(algType);
-
-  if (itkr == alphaAlgDriver_->algMap_.end()) {
-    Algorithm* theAlg = NULL;
-    switch (turbulenceModel_) {
-    case SST_TAMS:
-      theAlg = new ComputeSSTTAMSKratioNodeAlgorithm(realm_, part);
-      break;
-    default:
-      throw std::runtime_error("TAMSEquationSystem: non-supported turb model");
-    }
-    alphaAlgDriver_->algMap_[algType] = theAlg;
-  } else {
-    itkr->second->partVec_.push_back(part);
   }
 
   // avgMdot algorithm
@@ -586,7 +561,6 @@ TAMSEquationSystem::initial_work()
   // FIXME: Had to move this to SST Eqn Systems for now since mdot is not 
   //        able to be calculated during intial_work phase...
   //initialize_mdot();
-  compute_alpha();
   compute_resolution_adequacy_parameters();
   //compute_avgMdot();
 }
@@ -602,8 +576,6 @@ TAMSEquationSystem::post_converged_work()
 
   // FIXME: Assess consistency of this order of operations...
   compute_averages();
-
-  compute_alpha();
 
   compute_resolution_adequacy_parameters();
 
@@ -707,16 +679,6 @@ TAMSEquationSystem::compute_averages()
 {
   if (NULL != averagingAlgDriver_)
     averagingAlgDriver_->execute();
-}
-
-//--------------------------------------------------------------------------
-//-------- compute_alpha() -------------------------------------------------
-//--------------------------------------------------------------------------
-void
-TAMSEquationSystem::compute_alpha()
-{
-  if (NULL != alphaAlgDriver_)
-    alphaAlgDriver_->execute();
 }
 
 //--------------------------------------------------------------------------

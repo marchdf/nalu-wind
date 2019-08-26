@@ -163,6 +163,21 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       avgRho[k] = weightAvg * avgRho[k] + weightInst * rho[k];
       avgTkeRes[k] = weightAvg * avgTkeRes[k] + weightInst * 0.5 * tkeRes;
 
+      // Calculate alpha
+      if (tke[k] == 0.0)
+        alpha[k] = 1.0;
+      else {
+        alpha[k] = 1.0 - avgTkeRes[k] / tke[k];
+
+        // limiters
+        alpha[k] = std::min(alpha[k], 1.0);
+
+        // FIXME: What to do with a_kol in SST?
+        const double a_kol = 0.01;
+
+        alpha[k] = std::max(alpha[k], a_kol);
+      }
+
       // Production averaging
       double tij[nDim][nDim];
       for (int i = 0; i < nDim; ++i) {
@@ -203,6 +218,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
 
       // TODO: Allow for a different averaging timescale for production
       avgProd[k] = weightAvg * avgProd[k] + weightInst * instProd;
+
     }
   }
 }

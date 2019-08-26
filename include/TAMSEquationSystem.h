@@ -76,7 +76,6 @@ public:
   void compute_resolution_adequacy_parameters();
   void compute_metric_tensor();
   void compute_averages();
-  void compute_alpha();
   void compute_avgMdot();
   void update_and_clip();
 
@@ -100,7 +99,6 @@ public:
   AlgorithmDriver* metricTensorAlgDriver_;
   AlgorithmDriver* resolutionAdequacyAlgDriver_;
   AlgorithmDriver* averagingAlgDriver_;
-  AlgorithmDriver* alphaAlgDriver_;
   AlgorithmDriver* avgMdotAlgDriver_;
   AlgorithmDriver* tviscAlgDriver_;
 
