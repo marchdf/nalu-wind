@@ -55,6 +55,7 @@ private:
   unsigned alpha_{stk::mesh::InvalidOrdinal};
   unsigned prod_{stk::mesh::InvalidOrdinal};
   unsigned fOneBlend_{stk::mesh::InvalidOrdinal};
+  unsigned coordinates_{stk::mesh::InvalidOrdinal};
 
   const bool lumpedMass_;
   const bool shiftedGradOp_;
