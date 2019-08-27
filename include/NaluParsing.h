@@ -63,13 +63,6 @@ struct SpecDissRate {
   {}
 };
 
-struct TotDissRate {
-  double totDissRate_;
-  TotDissRate()
-    : totDissRate_(0.0)
-  {}
-};
-
 struct Temperature {
   double temperature_;
   Temperature()
@@ -549,10 +542,6 @@ template<> struct convert<sierra::nalu::TurbKinEnergy> {
 
 template<> struct convert<sierra::nalu::SpecDissRate> {
   static bool decode(const Node& node, sierra::nalu::SpecDissRate& rhs) ;
-};
-
-template<> struct convert<sierra::nalu::TotDissRate> {
-  static bool decode(const Node& node, sierra::nalu::TotDissRate& rhs) ;
 };
 
 template<> struct convert<sierra::nalu::Temperature> {
