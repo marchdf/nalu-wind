@@ -63,7 +63,7 @@ private:
   unsigned densityNp1_{stk::mesh::InvalidOrdinal};
   unsigned tkeNp1_{stk::mesh::InvalidOrdinal};
   unsigned sdrNp1_{stk::mesh::InvalidOrdinal};
-  unsigned alphaNp1_{stk::mesh::InvalidOrdinal};
+  unsigned alpha_{stk::mesh::InvalidOrdinal};
   unsigned coordinates_{stk::mesh::InvalidOrdinal};
   unsigned Mij_{stk::mesh::InvalidOrdinal};
   unsigned avgResAdeq_{stk::mesh::InvalidOrdinal};

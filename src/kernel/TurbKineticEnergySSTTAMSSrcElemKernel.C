@@ -38,7 +38,6 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::
   tkeNp1_ = get_field_ordinal(metaData, "turbulent_ke");
   sdrNp1_ = get_field_ordinal(metaData, "specific_dissipation_rate");
   densityNp1_ = get_field_ordinal(metaData, "average_density");
-  velocityNp1_ = get_field_ordinal(metaData, "average_velocity");
   tvisc_ = get_field_ordinal(metaData, "turbulent_viscosity");
   alpha_ = get_field_ordinal(metaData, "k_ratio");
   prod_ = get_field_ordinal(metaData, "average_production");
@@ -55,7 +54,6 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::
   dataPreReqs.add_gathered_nodal_field(tkeNp1_, 1);
   dataPreReqs.add_gathered_nodal_field(sdrNp1_, 1);
   dataPreReqs.add_gathered_nodal_field(densityNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(velocityNp1_, AlgTraits::nDim_);
   dataPreReqs.add_gathered_nodal_field(tvisc_, 1);
   dataPreReqs.add_gathered_nodal_field(prod_, 1);
   dataPreReqs.add_gathered_nodal_field(alpha_, 1);
@@ -105,7 +103,7 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::execute(
 
       const DoubleType r = v_shape_function(ip, ic);
 
-      rho += r * v_densityNp1(ic);
+      rho += r * v_rhoNp1(ic);
       tke += r * v_tkeNp1(ic);
       sdr += r * v_sdrNp1(ic);
       tvisc += r * v_tvisc(ic);
@@ -130,7 +128,7 @@ TurbKineticEnergySSTTAMSSrcElemKernel<AlgTraits>::execute(
     // assemble RHS and LHS
     rhs(nearestNode) += (Pk - Dk) * scV;
     for (int ic = 0; ic < AlgTraits::nodesPerElement_; ++ic) {
-      lhs(nearestNode, ic) += v_shape_function_(ip, ic) * tkeFac * scV;
+      lhs(nearestNode, ic) += v_shape_function(ip, ic) * tkeFac * scV;
     }
   }
 }

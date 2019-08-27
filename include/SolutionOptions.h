@@ -234,7 +234,7 @@ public:
 
   bool newHO_;
 
-  bool resetTAMSAverages;
+  bool resetTAMSAverages_;
 };
 
 } // namespace nalu

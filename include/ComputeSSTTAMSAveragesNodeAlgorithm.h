@@ -27,6 +27,7 @@ public:
   const double CMdeg_;
   const bool meshMotion_;
 
+  VectorFieldType* coordinates_{nullptr};
   VectorFieldType* velocityRTM_{nullptr};
   ScalarFieldType* pressure_{nullptr};
   ScalarFieldType* density_{nullptr};

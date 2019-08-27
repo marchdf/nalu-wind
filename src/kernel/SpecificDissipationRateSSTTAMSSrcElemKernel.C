@@ -125,7 +125,7 @@ SpecificDissipationRateSSTTAMSSrcElemKernel<AlgTraits>::execute(
 
       const DoubleType r = v_shape_function(ip, ic);
 
-      rho += r * v_densityNp1(ic);
+      rho += r * v_rhoNp1(ic);
       tke += r * v_tkeNp1(ic);
       sdr += r * v_sdrNp1(ic);
       tvisc += r * v_tvisc(ic);
@@ -172,7 +172,7 @@ SpecificDissipationRateSSTTAMSSrcElemKernel<AlgTraits>::execute(
     rhs(nearestNode) += (Pw - Dw + Sw) * scV;
     for (int ic = 0; ic < AlgTraits::nodesPerElement_; ++ic) {
       lhs(nearestNode, ic) +=
-        v_shape_function_(ip, ic) *
+        v_shape_function(ip, ic) *
         (2.0 * beta * rho * sdr + stk::math::max(Sw / sdr, 0.0)) * scV;
     }
   }

@@ -37,7 +37,7 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::MomentumSSTTAMSForcingElemKernel(
   : viscosity_(viscosity->mesh_meta_data_ordinal()),
     turbViscosity_(turbViscosity->mesh_meta_data_ordinal()),
     betaStar_(solnOpts.get_turb_model_constant(TM_betaStar)),
-    forceFactor_(solnOpts..get_turb_model_constant(TM_forFac))
+    forceFactor_(solnOpts.get_turb_model_constant(TM_forFac))
 {
   pi_ = stk::math::acos(-1.0);
   const stk::mesh::MetaData& metaData = bulkData.mesh_meta_data();
@@ -46,7 +46,7 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::MomentumSSTTAMSForcingElemKernel(
   tkeNp1_ = get_field_ordinal(metaData, "turbulent_ke");
 
   sdrNp1_ = get_field_ordinal(metaData, "specific_dissipation_rate");
-  alphaNp1_ = get_field_ordinal(metaData, "k_ratio");
+  alpha_ = get_field_ordinal(metaData, "k_ratio");
   Mij_ = get_field_ordinal(metaData, "metric_tensor");
 
   avgVelocity_ = get_field_ordinal(metaData, "average_velocity");
@@ -74,7 +74,7 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::MomentumSSTTAMSForcingElemKernel(
   dataPreReqs.add_gathered_nodal_field(sdrNp1_, 1);
   dataPreReqs.add_gathered_nodal_field(avgVelocity_, AlgTraits::nDim_);
   dataPreReqs.add_gathered_nodal_field(avgDensity_, 1);
-  dataPreReqs.add_gathered_nodal_field(alphaNp1_, 1);
+  dataPreReqs.add_gathered_nodal_field(alpha_, 1);
   dataPreReqs.add_gathered_nodal_field(avgTime_, 1);
   dataPreReqs.add_gathered_nodal_field(minDist_, 1);
   dataPreReqs.add_gathered_nodal_field(avgResAdeq_, 1);
@@ -165,7 +165,7 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
       tkeScv += r * v_tkeNp1(ic);
       sdrScv += r * v_sdrNp1(ic);
       avgTimeScv += r * v_avgTime(ic);
-      alphaScv += r * v_alphaNp1(ic);
+      alphaScv += r * v_alpha(ic);
       wallDistScv += r * v_minDist(ic);
       avgResAdeqScv += r * v_avgResAdeq(ic);
 

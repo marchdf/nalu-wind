@@ -173,7 +173,7 @@ MomentumSSTTAMSDiffElemKernel<AlgTraits>::execute(
       avgRhoScs += r * v_avgRho(ic);
       tkeScs += r * v_tkeNp1(ic);
       sdrScs += r * v_sdrNp1(ic);
-      alphaScs += r * v_alphaNp1(ic);
+      alphaScs += r * v_alpha(ic);
 
       for (int j = 0; j < AlgTraits::nDim_; ++j) {
         const DoubleType avgUj = v_avgU(ic, j);

@@ -85,13 +85,6 @@ TAMSEquationSystem::TAMSEquationSystem(EquationSystems& eqSystems)
     turbulenceModel_(realm_.solutionOptions_->turbulenceModel_),
     resetAverages_(realm_.solutionOptions_->resetTAMSAverages_)
 {
-  // extract solver name and solver object
-  std::string solverName =
-    realm_.equationSystems_.get_solver_block_name("time_averaged_model_split");
-  LinearSolver* solver =
-    realm_.root()->linearSolvers_->create_solver(solverName, EQ_TAMS);
-  linsys_ = LinearSystem::create(realm_, 1, this, solver);
-
   // push back EQ to manager
   realm_.push_equation_to_systems(this);
 
