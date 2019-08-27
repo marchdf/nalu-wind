@@ -6,46 +6,23 @@
 /*------------------------------------------------------------------------*/
 
 #include <AlgorithmDriver.h>
-#include <AssembleScalarEdgeOpenSolverAlgorithm.h>
-#include <AssembleScalarElemSolverAlgorithm.h>
-#include <AssembleScalarElemOpenSolverAlgorithm.h>
-#include <AssembleScalarNonConformalSolverAlgorithm.h>
-#include <AssembleNodeSolverAlgorithm.h>
-#include <AssembleNodalGradAlgorithmDriver.h>
-#include <AssembleNodalGradEdgeAlgorithm.h>
-#include <AssembleNodalGradElemAlgorithm.h>
-#include <AssembleNodalGradBoundaryAlgorithm.h>
-#include <AssembleNodalGradNonConformalAlgorithm.h>
-#include <AuxFunctionAlgorithm.h>
-#include <ConstantAuxFunction.h>
-#include <CopyFieldAlgorithm.h>
 #include <ComputeTAMSAvgMdotEdgeAlgorithm.h>
 #include <ComputeTAMSAvgMdotElemAlgorithm.h>
 #include <ComputeMetricTensorNodeAlgorithm.h>
 #include <ComputeSSTTAMSAveragesNodeAlgorithm.h>
-#include <ComputeSSTTAMSResAdequacyNodeAlgorithm.h>
-#include <DirichletBC.h>
 #include <EquationSystem.h>
 #include <EquationSystems.h>
 #include <Enums.h>
 #include <FieldFunctions.h>
-#include <LinearSolvers.h>
-#include <LinearSolver.h>
-#include <LinearSystem.h>
 #include <NaluEnv.h>
 #include <NaluParsing.h>
-#include <ProjectedNodalGradientEquationSystem.h>
 #include <Realm.h>
 #include <Realms.h>
 #include <Simulation.h>
 #include <SolutionOptions.h>
 #include <TAMSEquationSystem.h>
 #include <TimeIntegrator.h>
-#include <TurbViscKsgsAlgorithm.h>
-#include <TurbViscSmagorinskyAlgorithm.h>
-#include <TurbViscSSTAlgorithm.h>
 #include <TurbViscSSTTAMSAlgorithm.h>
-#include <TurbViscWaleAlgorithm.h>
 
 #include <SolverAlgorithmDriver.h>
 
@@ -54,36 +31,16 @@
 #include <kernel/KernelBuilder.h>
 #include <kernel/KernelBuilderLog.h>
 
-// consolidated
-#include <AssembleElemSolverAlgorithm.h>
-#include <kernel/ScalarMassElemKernel.h>
-#include <kernel/ScalarAdvDiffElemKernel.h>
-#include <kernel/ScalarUpwAdvDiffElemKernel.h>
-
-// edge kernels
-#include <edge_kernels/ScalarEdgeSolverAlg.h>
-
-// nso
-#include <nso/ScalarNSOElemKernel.h>
-#include <nso/ScalarNSOKeElemSuppAlg.h>
-
-// deprecated
-#include <ScalarMassElemSuppAlgDep.h>
-#include <nso/ScalarNSOKeElemSuppAlg.h>
-#include <nso/ScalarNSOElemSuppAlgDep.h>
-
-#include <overset/UpdateOversetFringeAlgorithmDriver.h>
-
 // stk_util
 #include <stk_util/parallel/Parallel.hpp>
 
 // stk_mesh/base/fem
 #include <stk_mesh/base/BulkData.hpp>
 #include <stk_mesh/base/Field.hpp>
-#include <stk_mesh/base/FieldParallel.hpp>
-#include <stk_mesh/base/GetBuckets.hpp>
-#include <stk_mesh/base/GetEntities.hpp>
-#include <stk_mesh/base/CoordinateSystems.hpp>
+//#include <stk_mesh/base/FieldParallel.hpp>
+//#include <stk_mesh/base/GetBuckets.hpp>
+//#include <stk_mesh/base/GetEntities.hpp>
+//#include <stk_mesh/base/CoordinateSystems.hpp>
 #include <stk_mesh/base/MetaData.hpp>
 
 // stk_io
@@ -121,13 +78,12 @@ TAMSEquationSystem::TAMSEquationSystem(EquationSystems& eqSystems)
     avgTime_(NULL),
     avgMdotScs_(NULL),
     avgMdot_(NULL),
-    gTmp_(NULL),
     metricTensorAlgDriver_(new AlgorithmDriver(realm_)),
     averagingAlgDriver_(new AlgorithmDriver(realm_)),
     avgMdotAlgDriver_(new AlgorithmDriver(realm_)),
     tviscAlgDriver_(new AlgorithmDriver(realm_)),
     turbulenceModel_(realm_.solutionOptions_->turbulenceModel_),
-    isInit_(true)
+    resetAverages_(realm_.solutionOptions_->resetTAMSAverages_)
 {
   // extract solver name and solver object
   std::string solverName =
@@ -192,8 +148,6 @@ TAMSEquationSystem::register_nodal_fields(stk::mesh::Part* part)
   stk::mesh::put_field_on_mesh(*avgProduction_, *part, nullptr);
   realm_.augment_restart_variable_list("average_production");
 
-  NaluEnv::self().naluOutputP0() << "Declaring avgDudx in TAMS" << std::endl;
-
   avgDudx_ = &(meta_data.declare_field<GenericFieldType>(
     stk::topology::NODE_RANK, "average_dudx"));
   stk::mesh::put_field_on_mesh(*avgDudx_, *part, nDim * nDim, nullptr);
@@ -220,11 +174,6 @@ TAMSEquationSystem::register_nodal_fields(stk::mesh::Part* part)
     stk::topology::NODE_RANK, "avg_res_adequacy_parameter"));
   stk::mesh::put_field_on_mesh(*avgResAdequacy_, *part, nullptr);
   realm_.augment_restart_variable_list("avg_res_adequacy_parameter");
-
-  // For use with a projected forcing term, currently not used in SST_TAMS...
-  //gTmp_ = &(
-  //  meta_data.declare_field<VectorFieldType>(stk::topology::NODE_RANK, "gTmp"));
-  //stk::mesh::put_field_on_mesh(*gTmp_, *part, nDim, nullptr);
 }
 
 //--------------------------------------------------------------------------
@@ -234,13 +183,13 @@ void
 TAMSEquationSystem::register_element_fields(
   stk::mesh::Part* part, const stk::topology& theTopo)
 {
+  NaluEnv::self().naluOutputP0() << "Elemental Mdot average added in TAMS " << std::endl;
+
   stk::mesh::MetaData& meta_data = realm_.meta_data();
 
   MasterElement* meSCS =
     sierra::nalu::MasterElementRepo::get_surface_master_element(theTopo);
   const int numScsIp = meSCS->num_integration_points();
-
-  NaluEnv::self().naluOutputP0() << "Elemental Mdot average added in TAMS " << std::endl;
 
   avgMdotScs_ = &(meta_data.declare_field<GenericFieldType>(
     stk::topology::ELEMENT_RANK, "average_mass_flow_rate_scs"));
@@ -255,7 +204,9 @@ void
 TAMSEquationSystem::register_edge_fields(stk::mesh::Part* part)
 {
   NaluEnv::self().naluOutputP0() << "Edge Mdot average added in TAMS " << std::endl;
+
   stk::mesh::MetaData& meta_data = realm_.meta_data();
+
   avgMdot_ = &(meta_data.declare_field<ScalarFieldType>(
     stk::topology::EDGE_RANK, "average_mass_flow_rate"));
   stk::mesh::put_field_on_mesh(*avgMdot_, *part, nullptr);
@@ -336,7 +287,7 @@ TAMSEquationSystem::register_interior_algorithm(stk::mesh::Part* part)
     }
   }
 
-  // FIXME: tvisc needed for TAMS update, but won't be updated until LowMach solve...
+  // FIXME: tvisc needed for TAMS update, but is updated in LowMach...
   //        Perhaps there is a way to call tvisc from LowMach here?
   std::map<AlgorithmType, Algorithm*>::iterator it_tv =
     tviscAlgDriver_->algMap_.find(algType);
@@ -460,82 +411,85 @@ TAMSEquationSystem::initial_work()
   stk::mesh::MetaData& meta_data = realm_.meta_data();
 
   // Initialialize avg_dudx and avg_Prod
-  // FIXME: We don't want to do this on restart...
-  const int nDim = meta_data.spatial_dimension();
+  // We don't want to do this on restart where TAMS fields are present
+  if (resetAverages_) {
+    const int nDim = meta_data.spatial_dimension();
 
-  GenericFieldType* dudx_ =
-    meta_data.get_field<GenericFieldType>(stk::topology::NODE_RANK, "dudx");
-  ScalarFieldType* turbKinEne_ = meta_data.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "turbulent_ke");
-  ScalarFieldType* tvisc_ = meta_data.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "turbulent_viscosity");
+    GenericFieldType* dudx_ =
+      meta_data.get_field<GenericFieldType>(stk::topology::NODE_RANK, "dudx");
+    ScalarFieldType* turbKinEne_ = meta_data.get_field<ScalarFieldType>(
+      stk::topology::NODE_RANK, "turbulent_ke");
+    ScalarFieldType* tvisc_ = meta_data.get_field<ScalarFieldType>(
+      stk::topology::NODE_RANK, "turbulent_viscosity");
 
-  ScalarFieldType& tkeNp1 = turbKinEne_->field_of_state(stk::mesh::StateNP1);
+    ScalarFieldType& tkeNp1 = turbKinEne_->field_of_state(stk::mesh::StateNP1);
 
-  // define some common selectors
-  stk::mesh::Selector s_all_nodes =
-    (meta_data.locally_owned_part() | meta_data.globally_shared_part()) &
-    stk::mesh::selectField(*avgDudx_);
+    // define some common selectors
+    stk::mesh::Selector s_all_nodes =
+      (meta_data.locally_owned_part() | meta_data.globally_shared_part()) &
+      stk::mesh::selectField(*avgDudx_);
 
-  stk::mesh::BucketVector const& buckets =
-    realm_.get_buckets(stk::topology::NODE_RANK, s_all_nodes);
-  for (stk::mesh::BucketVector::const_iterator ib = buckets.begin();
-       ib != buckets.end(); ++ib) {
-    stk::mesh::Bucket& b = **ib;
-    const stk::mesh::Bucket::size_type length = b.size();
+    stk::mesh::BucketVector const& buckets =
+      realm_.get_buckets(stk::topology::NODE_RANK, s_all_nodes);
+    for (stk::mesh::BucketVector::const_iterator ib = buckets.begin();
+         ib != buckets.end(); ++ib) {
+      stk::mesh::Bucket& b = **ib;
+      const stk::mesh::Bucket::size_type length = b.size();
 
-    double* tke = stk::mesh::field_data(tkeNp1, b);
-    double* tvisc = stk::mesh::field_data(*tvisc_, b);
-    double* avgProd = stk::mesh::field_data(*avgProduction_, b);
+      double* tke = stk::mesh::field_data(tkeNp1, b);
+      double* tvisc = stk::mesh::field_data(*tvisc_, b);
+      double* avgProd = stk::mesh::field_data(*avgProduction_, b);
 
-    for (stk::mesh::Bucket::size_type k = 0; k < length; ++k) {
-      // get velocity field data
-      const double* dudx = stk::mesh::field_data(*dudx_, b[k]);
-      double* avgDudx = stk::mesh::field_data(*avgDudx_, b[k]);
+      for (stk::mesh::Bucket::size_type k = 0; k < length; ++k) {
+        // get velocity field data
+        const double* dudx = stk::mesh::field_data(*dudx_, b[k]);
+        double* avgDudx = stk::mesh::field_data(*avgDudx_, b[k]);
 
-      // FIXME: Want to turn this off if restarting...
-      for (int i = 0; i < nDim; ++i)
-        for (int j = 0; j < nDim; ++j)
-          avgDudx[i * nDim + j] = dudx[i * nDim + j];
+        for (int i = 0; i < nDim; ++i)
+          for (int j = 0; j < nDim; ++j)
+            avgDudx[i * nDim + j] = dudx[i * nDim + j];
 
-      // Initialize average production to mean production
-      // FIXME: Want to turn this off if restarting...
-      double* tij = new double[nDim * nDim];
-      for (int i = 0; i < nDim; ++i) {
-        for (int j = 0; j < nDim; ++j) {
-          const double avgSij =
-            0.5 * (avgDudx[i * nDim + j] + avgDudx[j * nDim + i]);
-          tij[i * nDim + j] = 2.0 * tvisc[k] * avgSij;
-        }
-        tij[i * nDim + i] -= 2.0 / 3.0 * tke[k];
-      }
 
-      double* Pij = new double[nDim * nDim];
-      for (int i = 0; i < nDim; ++i) {
-        for (int j = 0; j < nDim; ++j) {
-          Pij[i * nDim + j] = 0.0;
-          for (int m = 0; m < nDim; ++m) {
-            Pij[i * nDim + j] += avgDudx[i * nDim + m] * tij[j * nDim + m] +
-                                 avgDudx[j * nDim + m] * tij[i * nDim + m];
+        // Initialize average production to mean production
+        double* tij = new double[nDim * nDim];
+        for (int i = 0; i < nDim; ++i) {
+          for (int j = 0; j < nDim; ++j) {
+            const double avgSij =
+              0.5 * (avgDudx[i * nDim + j] + avgDudx[j * nDim + i]);
+            tij[i * nDim + j] = 2.0 * tvisc[k] * avgSij;
           }
-          Pij[i * nDim + j] *= 0.5;
+          tij[i * nDim + i] -= 2.0 / 3.0 * tke[k];
         }
+
+        double* Pij = new double[nDim * nDim];
+        for (int i = 0; i < nDim; ++i) {
+          for (int j = 0; j < nDim; ++j) {
+            Pij[i * nDim + j] = 0.0;
+            for (int m = 0; m < nDim; ++m) {
+              Pij[i * nDim + j] += avgDudx[i * nDim + m] * tij[j * nDim + m] +
+                                   avgDudx[j * nDim + m] * tij[i * nDim + m];
+            }
+            Pij[i * nDim + j] *= 0.5;
+          }
+        }
+
+        double instProd = 0.0;
+        for (int i = 0; i < nDim; ++i)
+          instProd += Pij[i * nDim + i];
+
+        avgProd[k] = instProd;
+
+        delete[] tij;
+        delete[] Pij;
       }
-
-      double instProd = 0.0;
-      for (int i = 0; i < nDim; ++i)
-        instProd += Pij[i * nDim + i];
-
-      avgProd[k] = instProd;
-
-      delete[] tij;
-      delete[] Pij;
     }
   }
 
   compute_averages();
-  // FIXME: Had to move this to SST Eqn Systems for now since mdot is not 
-  //        able to be calculated during intial_work phase...
+
+  // FIXME: Moved this to SST Eqn Systems for now since mdot has not 
+  //        been calculated during intial_work phase...
+  //        Is that the best approach? Or would it be better to keep TAMS self-contained?
   //initialize_mdot();
   //compute_avgMdot();
 }
@@ -547,9 +501,11 @@ void
 TAMSEquationSystem::post_converged_work()
 {
   // Compute TAMS terms here, since we only want to do so once per timestep
+
+  // Need to update tvisc for use in computing averages
   tviscAlgDriver_->execute();
 
-  // FIXME: Assess consistency of this order of operations...
+  // TODO: Assess consistency of this order of operations...
   compute_averages();
 
   compute_avgMdot();
@@ -560,69 +516,68 @@ TAMSEquationSystem::post_converged_work()
 //--------------------------------------------------------------------------
 void
 TAMSEquationSystem::initialize_mdot()
-{
-  // FIXME: Don't do this if it's a restart and average_mdot has been defined...
+{}
+/*{
+  // Don't do this if it's a restart and average_mdot has been defined...
+  if (resetAverages_) {
 
-  stk::mesh::MetaData& meta_data = realm_.meta_data();
-  if (realm_.realmUsesEdges_) {
-    ScalarFieldType* massFlowRate_ = meta_data.get_field<ScalarFieldType>(
-      stk::topology::EDGE_RANK, "mass_flow_rate");
+    stk::mesh::MetaData& meta_data = realm_.meta_data();
+    if (realm_.realmUsesEdges_) {
+      ScalarFieldType* massFlowRate_ = meta_data.get_field<ScalarFieldType>(
+        stk::topology::EDGE_RANK, "mass_flow_rate");
 
-    // FIXME: Is this selector right?
-    stk::mesh::Selector s_locally_owned_union =
-      (meta_data.locally_owned_part() | meta_data.globally_shared_part()) &
-      stk::mesh::selectField(*avgMdot_);
+      stk::mesh::Selector s_all_nodes =
+        (meta_data.locally_owned_part() | meta_data.globally_shared_part()) &
+        stk::mesh::selectField(*avgMdot_);
 
-    stk::mesh::BucketVector const& edge_buckets =
-      realm_.get_buckets(stk::topology::EDGE_RANK, s_locally_owned_union);
-    for (stk::mesh::BucketVector::const_iterator ib = edge_buckets.begin();
-         ib != edge_buckets.end(); ++ib) {
-      stk::mesh::Bucket& b = **ib;
-      const stk::mesh::Bucket::size_type length = b.size();
+      stk::mesh::BucketVector const& edge_buckets =
+        realm_.get_buckets(stk::topology::EDGE_RANK, s_all_nodes);
+      for (stk::mesh::BucketVector::const_iterator ib = edge_buckets.begin();
+           ib != edge_buckets.end(); ++ib) {
+        stk::mesh::Bucket& b = **ib;
+        const stk::mesh::Bucket::size_type length = b.size();
 
-      const double* mdot = stk::mesh::field_data(*massFlowRate_, b);
-      double* avgMdot = stk::mesh::field_data(*avgMdot_, b);
+        const double* mdot = stk::mesh::field_data(*massFlowRate_, b);
+        double* avgMdot = stk::mesh::field_data(*avgMdot_, b);
 
-      for (stk::mesh::Bucket::size_type k = 0; k < length; ++k)
-        avgMdot[k] = mdot[k];
-    }
-  } else {
-    GenericFieldType* massFlowRateScs_ = meta_data.get_field<GenericFieldType>(
-      stk::topology::ELEMENT_RANK, "mass_flow_rate_scs");
+        for (stk::mesh::Bucket::size_type k = 0; k < length; ++k)
+          avgMdot[k] = mdot[k];
+      }
+    } else {
+      GenericFieldType* massFlowRateScs_ = meta_data.get_field<GenericFieldType>(
+        stk::topology::ELEMENT_RANK, "mass_flow_rate_scs");
 
-    // FIXME: Hack since setting an element field to a constant using Aux
-    // doesn't seem to work... required fields
+      // define some common selectors
+      stk::mesh::Selector s_all_elem =
+        (meta_data.locally_owned_part() | meta_data.globally_shared_part()) &
+        stk::mesh::selectField(*avgMdotScs_);
 
-    // define some common selectors
-    stk::mesh::Selector s_all_elem =
-      (meta_data.locally_owned_part() | meta_data.globally_shared_part()) &
-      stk::mesh::selectField(*avgMdotScs_);
+      stk::mesh::BucketVector const& elem_buckets =
+        realm_.get_buckets(stk::topology::ELEMENT_RANK, s_all_elem);
+      for (stk::mesh::BucketVector::const_iterator ib = elem_buckets.begin();
+           ib != elem_buckets.end(); ++ib) {
+        stk::mesh::Bucket& b = **ib;
+        const stk::mesh::Bucket::size_type length = b.size();
 
-    stk::mesh::BucketVector const& elem_buckets =
-      realm_.get_buckets(stk::topology::ELEMENT_RANK, s_all_elem);
-    for (stk::mesh::BucketVector::const_iterator ib = elem_buckets.begin();
-         ib != elem_buckets.end(); ++ib) {
-      stk::mesh::Bucket& b = **ib;
-      const stk::mesh::Bucket::size_type length = b.size();
+        // extract master element
+        MasterElement* meSCS =
+          sierra::nalu::MasterElementRepo::get_surface_master_element(
+            b.topology());
 
-      // extract master element
-      MasterElement* meSCS =
-        sierra::nalu::MasterElementRepo::get_surface_master_element(
-          b.topology());
+        // extract master element specifics
+        const int numScsIp = meSCS->num_integration_points();
 
-      // extract master element specifics
-      const int numScsIp = meSCS->num_integration_points();
+        for (stk::mesh::Bucket::size_type k = 0; k < length; ++k) {
+          double* avgMdotScs = stk::mesh::field_data(*avgMdotScs_, b, k);
+          const double* mdotScs = stk::mesh::field_data(*massFlowRateScs_, b, k);
 
-      for (stk::mesh::Bucket::size_type k = 0; k < length; ++k) {
-        double* avgMdotScs = stk::mesh::field_data(*avgMdotScs_, b, k);
-        const double* mdotScs = stk::mesh::field_data(*massFlowRateScs_, b, k);
-
-        for (int ip = 0; ip < numScsIp; ip++)
-          avgMdotScs[ip] = mdotScs[ip];
+          for (int ip = 0; ip < numScsIp; ip++)
+            avgMdotScs[ip] = mdotScs[ip];
+        }
       }
     }
   }
-}
+}*/
 
 //--------------------------------------------------------------------------
 //-------- compute_metric_tensor() -----------------------------------------

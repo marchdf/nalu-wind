@@ -98,7 +98,8 @@ SolutionOptions::SolutionOptions()
     mdotAlgOpenPost_(0.0),
     explicitlyZeroOpenPressureGradient_(false),
     useConsoldiatedPngSolverAlg_(false),
-    newHO_(false)
+    newHO_(false),
+    resetTAMSAverages_(true)
 {
   // nothing to do
 }
@@ -174,6 +175,10 @@ SolutionOptions::load(const YAML::Node & y_node)
       tscaleType_ = TSCALE_UDIAGINV;
     else
       throw std::runtime_error("SolutionOptions: Invalid option provided for projected_timescale_type");
+
+    // reset running TAMS averages to instantaneous quantities during intialization
+    // you would want to do this when restarting from a RANS simulation 
+    get_if_present(y_solution_options, "reset_TAMS_averages_on_init", resetTAMSAverages_, resetTAMSAverages_);
 
     // extract turbulence model; would be nice if we could parse an enum..
     std::string specifiedTurbModel;

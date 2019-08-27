@@ -102,7 +102,7 @@ public:
 
   const TurbulenceModel turbulenceModel_;
 
-  bool isInit_;
+  bool resetAverages_;
 };
 
 } // namespace nalu
