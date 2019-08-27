@@ -60,13 +60,6 @@ public:
     const stk::mesh::FastMeshIndex&,
     const stk::mesh::FastMeshIndex&,
     const stk::mesh::FastMeshIndex&) = 0;
-
-  //  KOKKOS_FUNCTION
-  //  virtual void execute(
-  //    EdgeKernelTraits::ShmemDataType&,
-  //    const stk::mesh::FastMeshIndex&,
-  //    const stk::mesh::FastMeshIndex&,
-  //    const stk::mesh::FastMeshIndex&) = 0;
 };
 
 template <typename T>

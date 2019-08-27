@@ -58,7 +58,7 @@
 #include <kernel/TurbKineticEnergySSTSrcElemKernel.h>
 #include <kernel/TurbKineticEnergySSTDESSrcElemKernel.h>
 
-// UT Austin Hybird TAMS kernel
+// UT Austin Hybrid TAMS kernel
 #include <kernel/TurbKineticEnergySSTTAMSSrcElemKernel.h>
 #include <node_kernels/TKESSTTAMSNodeKernel.h>
 

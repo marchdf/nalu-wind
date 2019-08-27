@@ -160,10 +160,7 @@ void ComputeMetricTensorNodeAlgorithm::execute() {
           for (int j = 0; j < nDim; ++j)
             nodalMij[i * nDim + j] +=
                 p_Mij[ip * nDim * nDim + i * nDim + j] * scV/dualNodalVolume[0];
-
-        //tmpFile << p_coords[ipNodeMap[ip]*nDim + 0] << " " << p_coords[ipNodeMap[ip]*nDim + 1] << " " << p_coords[ipNodeMap[ip]*nDim + 2] << " " << scV << " " << dualNodalVolume[0] << " " << " " << p_Mij[0] << " " << p_Mij[4] << " " << p_Mij[8] << " " << p_Mij[2] << " " << nodalMij[0] << " " << nodalMij[4] << " " << nodalMij[8] << " " << nodalMij[2] << std::endl;      
       }
-
     }
   }
 
@@ -175,30 +172,5 @@ void ComputeMetricTensorNodeAlgorithm::execute() {
   }
 }
 
-//--------------------------------------------------------------------------
-//-------- post_work -------------------------------------------------------
-//--------------------------------------------------------------------------
-void
-ComputeMetricTensorNodeAlgorithm::post_work()
-{
-
-//  stk::mesh::BulkData & bulk_data = realm_.bulk_data();
-//  stk::mesh::MetaData & meta_data = realm_.meta_data();
-//
-//  stk::mesh::parallel_sum(bulk_data, {nodalMij_});
-//
-//  tmpFile << "HERE" << std::endl;
-//
-//  if ( realm_.hasPeriodic_) {
-//    const unsigned nDim = meta_data.spatial_dimension();
-//    realm_.periodic_field_update(nodalMij_, nDim*nDim);
-//  }
-//
-//  if ( realm_.hasOverset_ ) {
-//    // this is a vector
-//    const unsigned nDim = meta_data.spatial_dimension();
-//    realm_.overset_orphan_node_field_update(nodalMij_, nDim, nDim);
-//  }
-}
 } // namespace nalu
 } // namespace sierra

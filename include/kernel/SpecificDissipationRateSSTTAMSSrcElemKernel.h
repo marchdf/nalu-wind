@@ -23,7 +23,7 @@ class MasterElement;
 class ElemDataRequests;
 
 template <typename AlgTraits>
-class SpecificDissipationRateSSTTAMSSrcElemKernel : public Kernel
+class SpecificDissipationRateSSTTAMSSrcElemKernel : public NGPKernel<SpecificDissipationRateSSTTAMSSrcElemKernel<AlgTraits>>
 {
 public:
   SpecificDissipationRateSSTTAMSSrcElemKernel(
@@ -32,30 +32,29 @@ public:
     ElemDataRequests&,
     const bool);
 
-  virtual ~SpecificDissipationRateSSTTAMSSrcElemKernel();
+  KOKKOS_FUNCTION SpecificDissipationRateSSTTAMSSrcElemKernel() = default;
+
+  KOKKOS_FUNCTION virtual ~SpecificDissipationRateSSTTAMSSrcElemKernel() = default;
 
   /** Execute the kernel within a Kokkos loop and populate the LHS and RHS for
    *  the linear solve
    */
   using Kernel::execute;
+
+  KOKKOS_FUNCTION
   virtual void execute(
-    SharedMemView<DoubleType**>&,
-    SharedMemView<DoubleType*>&,
-    ScratchViews<DoubleType>&);
+    SharedMemView<DoubleType**, DeviceShmem>&,
+    SharedMemView<DoubleType*, DeviceShmem>&,
+    ScratchViews<DoubleType, DeviceTeamHandleType, DeviceShmem>&);
 
 private:
-  SpecificDissipationRateSSTTAMSSrcElemKernel() = delete;
-
   unsigned tkeNp1_{stk::mesh::InvalidOrdinal};
   unsigned sdrNp1_{stk::mesh::InvalidOrdinal};
   unsigned densityNp1_{stk::mesh::InvalidOrdinal};
-  unsigned velocityNp1_{stk::mesh::InvalidOrdinal};
-  unsigned resStressNp1_{stk::mesh::InvalidOrdinal};
   unsigned tvisc_{stk::mesh::InvalidOrdinal};
   unsigned alpha_{stk::mesh::InvalidOrdinal};
   unsigned prod_{stk::mesh::InvalidOrdinal};
   unsigned fOneBlend_{stk::mesh::InvalidOrdinal};
-  unsigned coordinates_{stk::mesh::InvalidOrdinal};
 
   const bool lumpedMass_;
   const bool shiftedGradOp_;
@@ -67,11 +66,7 @@ private:
   const double gammaTwo_;
   double tkeProdLimitRatio_{0.0};
 
-  const int* ipNodeMap_;
-
-  // scratch space
-  AlignedViewType<DoubleType[AlgTraits::numScvIp_][AlgTraits::nodesPerElement_]>
-    v_shape_function_{"v_shape_function"};
+  MasterElement* meSCV_{nullptr};
 };
 
 } // namespace nalu

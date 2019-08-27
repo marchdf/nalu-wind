@@ -20,9 +20,7 @@ static constexpr double rhs[24] = {3.6748245514994e-17, -0.0046182581299522, -1.
 } // namespace hex8_golds
 } // anonymous namespace
 
-#ifndef KOKKOS_HAVE_CUDA
-
-TEST_F(TAMSKernelHex8Mesh, TAMS_SST_forcing)
+TEST_F(TAMSKernelHex8Mesh, NGP_TAMS_SST_forcing)
 {
   fill_mesh_and_init_fields();
 
@@ -61,5 +59,3 @@ TEST_F(TAMSKernelHex8Mesh, TAMS_SST_forcing)
   unit_test_kernel_utils::expect_all_near(
     helperObjs.linsys->rhs_, gold_values::rhs);
 }
-
-#endif

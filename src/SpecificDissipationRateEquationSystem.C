@@ -66,7 +66,7 @@
 #include <node_kernels/SDRSSTDESNodeKernel.h>
 #include <node_kernels/ScalarGclNodeKernel.h>
 
-// UT Austin Hybird TAMS kernel
+// UT Austin Hybrid TAMS kernel
 #include <kernel/SpecificDissipationRateSSTTAMSSrcElemKernel.h>
 #include <node_kernels/SDRSSTTAMSNodeKernel.h>
 

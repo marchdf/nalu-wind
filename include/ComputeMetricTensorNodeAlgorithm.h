@@ -22,8 +22,6 @@ public:
 
   virtual void execute();
 
-  void post_work();
-
   std::ofstream tmpFile;
 
   VectorFieldType *coordinates_{nullptr};

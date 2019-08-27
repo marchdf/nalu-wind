@@ -152,7 +152,7 @@
 #include <nso/MomentumNSOSijElemKernel.h>
 #include <nso/MomentumNSOGradElemSuppAlg.h>
 
-// UT Austin Hybird TAMS kernels
+// UT Austin Hybrid TAMS kernels
 #include <edge_kernels/AssembleTAMSEdgeKernelAlg.h>
 #include <node_kernels/MomentumSSTTAMSForcingNodeKernel.h>
 #include <kernel/MomentumSSTTAMSDiffElemKernel.h>

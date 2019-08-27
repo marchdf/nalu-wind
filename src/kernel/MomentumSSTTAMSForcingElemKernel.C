@@ -34,14 +34,10 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::MomentumSSTTAMSForcingElemKernel(
   ScalarFieldType* viscosity,
   ScalarFieldType* turbViscosity,
   ElemDataRequests& dataPreReqs)
-  : Kernel(),
-    viscosity_(viscosity->mesh_meta_data_ordinal()),
+  : viscosity_(viscosity->mesh_meta_data_ordinal()),
     turbViscosity_(turbViscosity->mesh_meta_data_ordinal()),
     betaStar_(solnOpts.get_turb_model_constant(TM_betaStar)),
-    forceFactor_(solnOpts..get_turb_model_constant(TM_forFac)),
-    ipNodeMap_(sierra::nalu::MasterElementRepo::get_volume_master_element(
-                 AlgTraits::topo_)
-                 ->ipNodeMap())
+    forceFactor_(solnOpts..get_turb_model_constant(TM_forFac))
 {
   pi_ = stk::math::acos(-1.0);
   const stk::mesh::MetaData& metaData = bulkData.mesh_meta_data();
@@ -62,15 +58,10 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::MomentumSSTTAMSForcingElemKernel(
 
   minDist_ = get_field_ordinal(metaData, "minimum_distance_to_wall");
 
-  MasterElement* meSCV =
-    sierra::nalu::MasterElementRepo::get_volume_master_element(
-      AlgTraits::topo_);
-
-  get_scv_shape_fn_data<AlgTraits>(
-    [&](double* ptr) { meSCV->shape_fcn(ptr); }, v_shape_function_);
+  meSCV_ = MasterElementRepo::get_volume_master_element<AlgTraits>();
 
   // add master elements
-  dataPreReqs.add_cvfem_volume_me(meSCV);
+  dataPreReqs.add_cvfem_volume_me(meSCV_);
 
   // fields
   dataPreReqs.add_coordinates_field(
@@ -92,14 +83,7 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::MomentumSSTTAMSForcingElemKernel(
 
   // master element data
   dataPreReqs.add_master_element_call(SCV_VOLUME, CURRENT_COORDINATES);
-
-  tmpFile.open("forcingField.txt", std::fstream::app);
-}
-
-template <typename AlgTraits>
-MomentumSSTTAMSForcingElemKernel<AlgTraits>::~MomentumSSTTAMSForcingElemKernel()
-{
-  tmpFile.close();
+  dataPreReqs.add_master_element_call(SCV_SHAPE_FCN, CURRENT_COORDINATES);
 }
 
 template <typename AlgTraits>
@@ -107,98 +91,88 @@ void
 MomentumSSTTAMSForcingElemKernel<AlgTraits>::setup(
   const TimeIntegrator& timeIntegrator)
 {
-  // FIXME: Hack to match CDP time
-  time_ = timeIntegrator.get_current_time() - 440.0;
-  dt_ = timeIntegrator.get_time_step();
-  step_ = timeIntegrator.get_time_step_count();
+  const double time_ = timeIntegrator.get_current_time();
+  const double dt_ = timeIntegrator.get_time_step();
 }
 
 template <typename AlgTraits>
 void
 MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
-  SharedMemView<DoubleType**>& lhs,
-  SharedMemView<DoubleType*>& rhs,
-  ScratchViews<DoubleType>& scratchViews)
+  SharedMemView<DoubleType**, DeviceShmem>& lhs,
+  SharedMemView<DoubleType*, DeviceShmem>& rhs,
+  ScratchViews<DoubleType, DeviceTeamHandleType, DeviceShmem>& scratchViews)
 {
-  NALU_ALIGNED DoubleType w_coordScs[AlgTraits::nDim_];
-  NALU_ALIGNED DoubleType w_avgUScs[AlgTraits::nDim_];
-  NALU_ALIGNED DoubleType w_fluctUScs[AlgTraits::nDim_];
+  NALU_ALIGNED DoubleType w_coordScv[AlgTraits::nDim_];
+  NALU_ALIGNED DoubleType w_avgUScv[AlgTraits::nDim_];
+  NALU_ALIGNED DoubleType w_fluctUScv[AlgTraits::nDim_];
   NALU_ALIGNED DoubleType w_MijElem[AlgTraits::nDim_][AlgTraits::nDim_];
 
-  SharedMemView<DoubleType**>& v_uNp1 =
-    scratchViews.get_scratch_view_2D(velocityNp1_);
-  SharedMemView<DoubleType**>& v_coordinates =
-    scratchViews.get_scratch_view_2D(coordinates_);
-  SharedMemView<DoubleType*>& v_rhoNp1 =
-    scratchViews.get_scratch_view_1D(densityNp1_);
-  SharedMemView<DoubleType*>& v_tkeNp1 =
-    scratchViews.get_scratch_view_1D(tkeNp1_);
-  SharedMemView<DoubleType*>& v_sdrNp1 =
-    scratchViews.get_scratch_view_1D(sdrNp1_);
-  SharedMemView<DoubleType*>& v_viscosity =
-    scratchViews.get_scratch_view_1D(viscosity_);
-  SharedMemView<DoubleType*>& v_turbViscosity =
-    scratchViews.get_scratch_view_1D(turbViscosity_);
-  SharedMemView<DoubleType**>& v_avgU =
-    scratchViews.get_scratch_view_2D(avgVelocity_);
-  SharedMemView<DoubleType*>& v_alphaNp1 =
-    scratchViews.get_scratch_view_1D(alphaNp1_);
-  SharedMemView<DoubleType*>& v_avgTime =
-    scratchViews.get_scratch_view_1D(avgTime_);
-  SharedMemView<DoubleType*>& v_minDist =
-    scratchViews.get_scratch_view_1D(minDist_);
-  SharedMemView<DoubleType*>& v_avgResAdeq =
-    scratchViews.get_scratch_view_1D(avgResAdeq_);
-  SharedMemView<DoubleType***>& v_Mij = scratchViews.get_scratch_view_3D(Mij_);
+  const auto& v_coordinates = scratchViews.get_scratch_view_2D(coordinates_);
+  const auto& v_uNp1 = scratchViews.get_scratch_view_2D(velocityNp1_);
+  const auto& v_viscosity = scratchViews.get_scratch_view_1D(viscosity_);
+  const auto& v_turbViscosity = scratchViews.get_scratch_view_1D(turbViscosity_);
+  const auto& v_rhoNp1 = scratchViews.get_scratch_view_1D(densityNp1_);
+  const auto& v_tkeNp1 = scratchViews.get_scratch_view_1D(tkeNp1_);
+  const auto& v_sdrNp1 = scratchViews.get_scratch_view_1D(sdrNp1_);
+  const auto& v_avgU = scratchViews.get_scratch_view_2D(avgVelocity_);
+  const auto& v_avgRho = scratchViews.get_scratch_view_1D(avgDensity_);
+  const auto& v_alpha = scratchViews.get_scratch_view_1D(alpha_);
+  const auto& v_avgTime = scratchViews.get_scratch_view_1D(avgTime_);
+  const auto& v_minDist = scratchViews.get_scratch_view_1D(minDist_);
+  const auto& v_avgResAdeq = scratchViews.get_scratch_view_1D(avgResAdeq_);
+  const auto& v_Mij = scratchViews.get_scratch_view_3D(Mij_);
 
-  SharedMemView<DoubleType*>& v_scv_volume =
-    scratchViews.get_me_views(CURRENT_COORDINATES).scv_volume;
+  auto& meViews = scratchViews.get_me_views(CURRENT_COORDINATES);
+  const auto& v_scv_volume = meViews.scv_volume;
+  auto& v_shape_function = meViews.scv_shape_fcn;
+  const auto& v_dndx = meViews.dndx_scv;
+  const auto* ipNodeMap = meSCV_->ipNodeMap();
 
   for (int ip = 0; ip < AlgTraits::numScvIp_; ++ip) {
 
     // nearest node for this ip
-    const int nearestNode = ipNodeMap_[ip];
+    const int nearestNode = ipNodeMap[ip];
 
     // zero out values of interest for this ip
     for (int j = 0; j < AlgTraits::nDim_; ++j) {
-      w_coordScs[j] = 0.0;
-      w_avgUScs[j] = 0.0;
-      w_fluctUScs[j] = 0.0;
+      w_coordScv[j] = 0.0;
+      w_avgUScv[j] = 0.0;
+      w_fluctUScv[j] = 0.0;
       for (int k = 0; k < AlgTraits::nDim_; ++k) {
         w_MijElem[j][k] = 0.0;
       }
     }
 
-    DoubleType muScs = 0.0;
-    DoubleType mu_tScs = 0.0;
-    DoubleType rhoScs = 0.0;
-    DoubleType tkeScs = 0.0;
-    DoubleType sdrScs = 0.0;
-    DoubleType avgTimeScs = 0.0;
-    DoubleType alphaScs = 0.0;
-    DoubleType wallDistScs = 0.0;
-    DoubleType avgResAdeqScs = 0.0;
+    DoubleType muScv = 0.0;
+    DoubleType mu_tScv = 0.0;
+    DoubleType rhoScv = 0.0;
+    DoubleType tkeScv = 0.0;
+    DoubleType sdrScv = 0.0;
+    DoubleType avgTimeScv = 0.0;
+    DoubleType alphaScv = 0.0;
+    DoubleType wallDistScv = 0.0;
+    DoubleType avgResAdeqScv = 0.0;
 
     // determine scs values of interest
     for (int ic = 0; ic < AlgTraits::nodesPerElement_; ++ic) {
 
       // save off shape function
-      const DoubleType r = v_shape_function_(ip, ic);
+      const DoubleType r = v_shape_function(ip, ic);
 
-      muScs += r * v_viscosity(ic);
-      mu_tScs += r * v_turbViscosity(ic);
-      rhoScs += r * v_rhoNp1(ic);
-      tkeScs += r * v_tkeNp1(ic);
-      sdrScs += r * v_sdrNp1(ic);
-      avgTimeScs += r * v_avgTime(ic);
-      alphaScs += r * v_alphaNp1(ic);
-      wallDistScs += r * v_minDist(ic);
-      avgResAdeqScs += r * v_avgResAdeq(ic);
+      muScv += r * v_viscosity(ic);
+      mu_tScv += r * v_turbViscosity(ic);
+      rhoScv += r * v_rhoNp1(ic);
+      tkeScv += r * v_tkeNp1(ic);
+      sdrScv += r * v_sdrNp1(ic);
+      avgTimeScv += r * v_avgTime(ic);
+      alphaScv += r * v_alphaNp1(ic);
+      wallDistScv += r * v_minDist(ic);
+      avgResAdeqScv += r * v_avgResAdeq(ic);
 
       for (int i = 0; i < AlgTraits::nDim_; ++i) {
-        w_coordScs[i] += r * v_coordinates(ic, i);
-        w_avgUScs[i] += r * v_avgU(ic, i);
-        w_fluctUScs[i] += r * (v_uNp1(ic, i) - v_avgU(ic, i));
+        w_coordScv[i] += r * v_coordinates(ic, i);
+        w_avgUScv[i] += r * v_avgU(ic, i);
+        w_fluctUScv[i] += r * (v_uNp1(ic, i) - v_avgU(ic, i));
 
         // Don't allow Mij to vary over the element, so take it as a direct
         // average over nodes
@@ -208,7 +182,7 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
       }
     }
 
-    const DoubleType epsScs = betaStar_ * tkeScs * sdrScs;
+    const DoubleType epsScv = betaStar_ * tkeScv * sdrScv;
 
     // First we calculate the a_i's
     const double FORCING_CL = 4.0;
@@ -223,17 +197,15 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
     const DoubleType periodicForcingLengthZ = 3.0 / 8.0 * pi_;
 
     DoubleType length =
-      FORCING_CL * stk::math::pow(alphaScs * tkeScs, 1.5) / epsScs;
-    length = stk::math::max(
-      length,
-      Ceta * (stk::math::pow(muScs, 0.75) / stk::math::pow(epsScs, 0.25)));
-    // FIXME: For channel, only want to clip in wall normal direction with
-    // wallDist
+      FORCING_CL * stk::math::pow(alphaScv * tkeScv, 1.5) / epsScv;
+    length = stk::math::max(length,
+      Ceta * (stk::math::pow(muScv, 0.75) / stk::math::pow(epsScv, 0.25)));
+    // FIXME: For channel, only want to clip in wall normal direction with wallDist
     //        For other flows, will need a better approach...
-    DoubleType lengthY = stk::math::min(length, wallDistScs);
+    DoubleType lengthY = stk::math::min(length, wallDistScv);
 
-    DoubleType T_alpha = alphaScs * tkeScs / epsScs;
-    T_alpha = stk::math::max(T_alpha, Ct * stk::math::sqrt(muScs / epsScs));
+    DoubleType T_alpha = alphaScv * tkeScv / epsScv;
+    T_alpha = stk::math::max(T_alpha, Ct * stk::math::sqrt(muScv / epsScv));
     T_alpha = BL_T * T_alpha;
 
     const DoubleType ceilLengthX =
@@ -281,9 +253,9 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
     const DoubleType az = pi_ / denomZ;
 
     // Then we calculate the arguments for the Taylor-Green Vortex
-    const DoubleType xarg = ax * (w_coordScs[0] + w_avgUScs[0] * time_);
-    const DoubleType yarg = ay * (w_coordScs[1] + w_avgUScs[1] * time_);
-    const DoubleType zarg = az * (w_coordScs[2] + w_avgUScs[2] * time_);
+    const DoubleType xarg = ax * (w_coordScv[0] + w_avgUScv[0] * time_);
+    const DoubleType yarg = ay * (w_coordScv[1] + w_avgUScv[1] * time_);
+    const DoubleType zarg = az * (w_coordScv[2] + w_avgUScv[2] * time_);
 
     // Now we calculate the initial Taylor-Green field
     DoubleType hX = 1.0 / 3.0 * stk::math::cos(xarg) * stk::math::sin(yarg) *
@@ -295,13 +267,13 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
 
     // Now we calculate the scaling of the initial field
     // FIXME: Pass the 0.22 as another turbulence constant (V2F_Cmu)
-    const DoubleType v2Scs = mu_tScs * betaStar_ * sdrScs / (0.22 * rhoScs);
+    const DoubleType v2Scv = mu_tScv * betaStar_ * sdrScv / (0.22 * rhoScv);
     const DoubleType F_target =
-      FORCING_FACTOR * stk::math::sqrt(alphaScs * v2Scs) / T_alpha;
+      FORCING_FACTOR * stk::math::sqrt(alphaScv * v2Scv) / T_alpha;
 
     const DoubleType prod_r_temp =
       (F_target * dt_) *
-      (hX * w_fluctUScs[0] + hY * w_fluctUScs[1] + hZ * w_fluctUScs[2]);
+      (hX * w_fluctUScv[0] + hY * w_fluctUScv[1] + hZ * w_fluctUScv[2]);
 
     const DoubleType prod_r_sgn =
       stk::math::if_then_else(prod_r_temp < 0.0, -1.0, 1.0);
@@ -310,9 +282,9 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
     const DoubleType prod_r =
       stk::math::if_then_else(prod_r_abs >= 1.0e-15, prod_r_temp, 0.0);
 
-    const DoubleType arg1 = stk::math::sqrt(avgResAdeqScs) - 1.0;
+    const DoubleType arg1 = stk::math::sqrt(avgResAdeqScv) - 1.0;
     const DoubleType arg = stk::math::if_then_else(
-      arg1 < 0.0, 1.0 - 1.0 / stk::math::sqrt(avgResAdeqScs), arg1);
+      arg1 < 0.0, 1.0 - 1.0 / stk::math::sqrt(avgResAdeqScv), arg1);
 
     const DoubleType a_sign = stk::math::tanh(arg);
 
@@ -320,14 +292,14 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
 
     // FIXME: I need to straighten out this rho situation
     const DoubleType a_kol =
-      stk::math::min(BL_KOL * stk::math::sqrt(muScs * epsScs) / tkeScs, 1.0);
+      stk::math::min(BL_KOL * stk::math::sqrt(muScv * epsScv) / tkeScv, 1.0);
 
     // FIXME: Can I do a compound if statement with if_then... it was not
     // working...
     for (int simdIndex = 0; simdIndex < stk::simd::ndoubles; ++simdIndex) {
       double tmp_asign = stk::simd::get_data(a_sign, simdIndex);
       double tmp_akol = stk::simd::get_data(a_kol, simdIndex);
-      double tmp_alpha = stk::simd::get_data(alphaScs, simdIndex);
+      double tmp_alpha = stk::simd::get_data(alphaScv, simdIndex);
       double tmp_Sa = stk::simd::get_data(Sa, simdIndex);
 
       if (tmp_asign < 0.0) {
@@ -340,7 +312,7 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
       stk::simd::set_data(Sa, simdIndex, tmp_Sa);
     }
 
-    const DoubleType fd_temp = avgResAdeqScs;
+    const DoubleType fd_temp = avgResAdeqScv;
 
     DoubleType C_F;
 

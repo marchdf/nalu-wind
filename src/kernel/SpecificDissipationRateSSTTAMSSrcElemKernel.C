@@ -29,8 +29,7 @@ SpecificDissipationRateSSTTAMSSrcElemKernel<AlgTraits>::
     const SolutionOptions& solnOpts,
     ElemDataRequests& dataPreReqs,
     const bool lumpedMass)
-  : Kernel(),
-    lumpedMass_(lumpedMass),
+  : lumpedMass_(lumpedMass),
     shiftedGradOp_(solnOpts.get_shifted_grad_op("velocity")),
     betaStar_(solnOpts.get_turb_model_constant(TM_betaStar)),
     sigmaWTwo_(solnOpts.get_turb_model_constant(TM_sigmaWTwo)),
@@ -38,36 +37,22 @@ SpecificDissipationRateSSTTAMSSrcElemKernel<AlgTraits>::
     betaTwo_(solnOpts.get_turb_model_constant(TM_betaTwo)),
     gammaOne_(solnOpts.get_turb_model_constant(TM_gammaOne)),
     gammaTwo_(solnOpts.get_turb_model_constant(TM_gammaTwo)),
-    tkeProdLimitRatio_(solnOpts.get_turb_model_constant(TM_tkeProdLimitRatio)),
-    ipNodeMap_(sierra::nalu::MasterElementRepo::get_volume_master_element(
-                 AlgTraits::topo_)
-                 ->ipNodeMap())
+    tkeProdLimitRatio_(solnOpts.get_turb_model_constant(TM_tkeProdLimitRatio))
 {
   const stk::mesh::MetaData& metaData = bulkData.mesh_meta_data();
   tkeNp1_ = get_field_ordinal(metaData, "turbulent_ke");
   sdrNp1_ = get_field_ordinal(metaData, "specific_dissipation_rate");
   densityNp1_ = get_field_ordinal(metaData, "average_density");
-  velocityNp1_ = get_field_ordinal(metaData, "average_velocity");
   tvisc_ = get_field_ordinal(metaData, "turbulent_viscosity");
   alpha_ = get_field_ordinal(metaData, "k_ratio");
   prod_ = get_field_ordinal(metaData, "average_production");
   fOneBlend_ = get_field_ordinal(metaData, "sst_f_one_blending");
   coordinates_ = get_field_ordinal(metaData, solnOpts.get_coordinates_name());
 
-  MasterElement* meSCV =
-    sierra::nalu::MasterElementRepo::get_volume_master_element(
-      AlgTraits::topo_);
-
-  // compute shape function
-  if (lumpedMass_)
-    get_scv_shape_fn_data<AlgTraits>(
-      [&](double* ptr) { meSCV->shifted_shape_fcn(ptr); }, v_shape_function_);
-  else
-    get_scv_shape_fn_data<AlgTraits>(
-      [&](double* ptr) { meSCV->shape_fcn(ptr); }, v_shape_function_);
+  meSCV_ = MasterElementRepo::get_volume_master_element<AlgTraits>();
 
   // add master elements
-  dataPreReqs.add_cvfem_volume_me(meSCV);
+  dataPreReqs.add_cvfem_volume_me(meSCV_);
 
   // fields and data
   dataPreReqs.add_coordinates_field(
@@ -75,62 +60,51 @@ SpecificDissipationRateSSTTAMSSrcElemKernel<AlgTraits>::
   dataPreReqs.add_gathered_nodal_field(tkeNp1_, 1);
   dataPreReqs.add_gathered_nodal_field(sdrNp1_, 1);
   dataPreReqs.add_gathered_nodal_field(densityNp1_, 1);
-  dataPreReqs.add_gathered_nodal_field(velocityNp1_, AlgTraits::nDim_);
   dataPreReqs.add_gathered_nodal_field(tvisc_, 1);
   dataPreReqs.add_gathered_nodal_field(alpha_, 1);
   dataPreReqs.add_gathered_nodal_field(prod_, 1);
   dataPreReqs.add_gathered_nodal_field(fOneBlend_, 1);
   dataPreReqs.add_master_element_call(SCV_VOLUME, CURRENT_COORDINATES);
+
   if (shiftedGradOp_)
     dataPreReqs.add_master_element_call(
       SCV_SHIFTED_GRAD_OP, CURRENT_COORDINATES);
   else
     dataPreReqs.add_master_element_call(SCV_GRAD_OP, CURRENT_COORDINATES);
-}
 
-template <typename AlgTraits>
-SpecificDissipationRateSSTTAMSSrcElemKernel<
-  AlgTraits>::~SpecificDissipationRateSSTTAMSSrcElemKernel()
-{
+  dataPreReqs.add_master_element_call(SCV_SHAPE_FCN, CURRENT_COORDINATES);
+  if (lumpedMass_)
+    dataPreReqs.add_master_element_call(SCV_SHIFTED_SHAPE_FCN, CURRENT_COORDINATES);
 }
 
 template <typename AlgTraits>
 void
 SpecificDissipationRateSSTTAMSSrcElemKernel<AlgTraits>::execute(
-  SharedMemView<DoubleType**>& lhs,
-  SharedMemView<DoubleType*>& rhs,
-  ScratchViews<DoubleType>& scratchViews)
+  SharedMemView<DoubleType**, DeviceShmem>& lhs,
+  SharedMemView<DoubleType*, DeviceShmem>& rhs,
+  ScratchViews<DoubleType, DeviceTeamHandleType, DeviceShmem>& scratchViews)
 {
-  NALU_ALIGNED DoubleType w_dudx[AlgTraits::nDim_][AlgTraits::nDim_];
   NALU_ALIGNED DoubleType w_dkdx[AlgTraits::nDim_];
   NALU_ALIGNED DoubleType w_dwdx[AlgTraits::nDim_];
 
-  SharedMemView<DoubleType*>& v_tkeNp1 =
-    scratchViews.get_scratch_view_1D(tkeNp1_);
-  SharedMemView<DoubleType*>& v_sdrNp1 =
-    scratchViews.get_scratch_view_1D(sdrNp1_);
-  SharedMemView<DoubleType*>& v_densityNp1 =
-    scratchViews.get_scratch_view_1D(densityNp1_);
-  SharedMemView<DoubleType**>& v_velocityNp1 =
-    scratchViews.get_scratch_view_2D(velocityNp1_);
-  SharedMemView<DoubleType*>& v_tvisc =
-    scratchViews.get_scratch_view_1D(tvisc_);
-  SharedMemView<DoubleType*>& v_alpha =
-    scratchViews.get_scratch_view_1D(alpha_);
-  SharedMemView<DoubleType*>& v_prod = scratchViews.get_scratch_view_1D(prod_);
-  SharedMemView<DoubleType*>& v_fOneBlend =
-    scratchViews.get_scratch_view_1D(fOneBlend_);
-  SharedMemView<DoubleType***>& v_dndx =
-    shiftedGradOp_
-      ? scratchViews.get_me_views(CURRENT_COORDINATES).dndx_scv_shifted
-      : scratchViews.get_me_views(CURRENT_COORDINATES).dndx_scv;
-  SharedMemView<DoubleType*>& v_scv_volume =
-    scratchViews.get_me_views(CURRENT_COORDINATES).scv_volume;
+  const auto& v_tvisc = scratchViews.get_scratch_view_1D(tvisc_);
+  const auto& v_rhoNp1 = scratchViews.get_scratch_view_1D(densityNp1_);
+  const auto& v_tkeNp1 = scratchViews.get_scratch_view_1D(tkeNp1_);
+  const auto& v_sdrNp1 = scratchViews.get_scratch_view_1D(sdrNp1_);
+  const auto& v_alpha = scratchViews.get_scratch_view_1D(alpha_);
+  const auto& v_prod = scratchViews.get_scratch_view_1D(prod_);
+  const auto& v_fOneBlend = scratchViews.get_scratch_view_1D(fOneBlend_);
+
+  const auto& meViews = scratchViews.get_me_views(CURRENT_COORDINATES);
+  const auto& v_scv_volume = meViews.scv_volume;
+  const auto& v_shape_function = lumpedMass_ ? meViews.scv_shifted_shape_fcn : meViews.scv_shape_fcn; 
+  const auto& v_dndx = shiftedGradOp_ ? meViews.dndx_scv_shifted : meViews.dndx_scv;
+  const auto* ipNodeMap = meSCV_->ipNodeMap();
 
   for (int ip = 0; ip < AlgTraits::numScvIp_; ++ip) {
 
     // nearest node to ip
-    const int nearestNode = ipNodeMap_[ip];
+    const int nearestNode = ipNodeMap[ip];
 
     // save off scvol
     const DoubleType scV = v_scv_volume(ip);
@@ -145,14 +119,11 @@ SpecificDissipationRateSSTTAMSSrcElemKernel<AlgTraits>::execute(
     for (int i = 0; i < AlgTraits::nDim_; ++i) {
       w_dkdx[i] = 0.0;
       w_dwdx[i] = 0.0;
-      for (int j = 0; j < AlgTraits::nDim_; ++j) {
-        w_dudx[i][j] = 0.0;
-      }
     }
 
     for (int ic = 0; ic < AlgTraits::nodesPerElement_; ++ic) {
 
-      const DoubleType r = v_shape_function_(ip, ic);
+      const DoubleType r = v_shape_function(ip, ic);
 
       rho += r * v_densityNp1(ic);
       tke += r * v_tkeNp1(ic);
@@ -164,12 +135,8 @@ SpecificDissipationRateSSTTAMSSrcElemKernel<AlgTraits>::execute(
 
       for (int i = 0; i < AlgTraits::nDim_; ++i) {
         const DoubleType dni = v_dndx(ip, ic, i);
-        const DoubleType ui = v_velocityNp1(ic, i);
         w_dkdx[i] += dni * v_tkeNp1(ic);
         w_dwdx[i] += dni * v_sdrNp1(ic);
-        for (int j = 0; j < AlgTraits::nDim_; ++j) {
-          w_dudx[i][j] += v_dndx(ip, ic, j) * ui;
-        }
       }
     }
 
@@ -182,7 +149,7 @@ SpecificDissipationRateSSTTAMSSrcElemKernel<AlgTraits>::execute(
     // changes: 1) improvements to the production based on the resolved
     // fluctuations 2) the addition of alpha to modify the production 3) the
     // averaging of the production, thus it's calculation has been moved to the
-    //    averaging function
+    // averaging function
     DoubleType Pk = prod;
 
     // dissipation and production (limited)

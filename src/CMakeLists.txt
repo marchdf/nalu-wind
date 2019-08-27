@@ -73,7 +73,6 @@ add_sources(GlobalSourceList
    ComputeTAMSAvgMdotEdgeAlgorithm.C
    ComputeTAMSAvgMdotElemAlgorithm.C
    ComputeSSTTAMSAveragesNodeAlgorithm.C
-   ComputeSSTTAMSResAdequacyNodeAlgorithm.C
    ComputeTurbKineticEnergyWallFunctionAlgorithm.C
    ComputeWallFrictionVelocityAlgorithm.C
    ComputeWallModelSDRWallAlgorithm.C

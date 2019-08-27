@@ -32,25 +32,25 @@ public:
     ElemDataRequests&,
     const bool);
 
-  virtual ~TurbKineticEnergySSTTAMSSrcElemKernel();
+  KOKKOS_FUNCTION TurbKineticEnergySSTTAMSSrcElemKernel() = default;
+
+  KOKKOS_FUNCTION virtual ~TurbKineticEnergySSTTAMSSrcElemKernel() = default;
 
   /** Execute the kernel within a Kokkos loop and populate the LHS and RHS for
    *  the linear solve
    */
   using Kernel::execute;
+
+  KOKKOS_FUNCTION
   virtual void execute(
-    SharedMemView<DoubleType**>&,
-    SharedMemView<DoubleType*>&,
-    ScratchViews<DoubleType>&);
+    SharedMemView<DoubleType**, DeviceShmem>&,
+    SharedMemView<DoubleType*, DeviceShmem>&,
+    ScratchViews<DoubleType, DeviceTeamHandleType, DeviceShmem>&);
 
 private:
-  TurbKineticEnergySSTTAMSSrcElemKernel() = delete;
-
   unsigned tkeNp1_{stk::mesh::InvalidOrdinal};
   unsigned sdrNp1_{stk::mesh::InvalidOrdinal};
   unsigned densityNp1_{stk::mesh::InvalidOrdinal};
-  unsigned velocityNp1_{stk::mesh::InvalidOrdinal};
-  unsigned resStressNp1_{stk::mesh::InvalidOrdinal};
   unsigned tvisc_{stk::mesh::InvalidOrdinal};
   unsigned alpha_{stk::mesh::InvalidOrdinal};
   unsigned prod_{stk::mesh::InvalidOrdinal};
@@ -61,11 +61,7 @@ private:
   const double betaStar_;
   double tkeProdLimitRatio_{0.0};
 
-  const int* ipNodeMap_;
-
-  // scratch space
-  AlignedViewType<DoubleType[AlgTraits::numScvIp_][AlgTraits::nodesPerElement_]>
-    v_shape_function_{"v_shape_function"};
+  MasterElement* meSCV_{nullptr};
 };
 
 } // namespace nalu

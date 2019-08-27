@@ -24,11 +24,11 @@ class SolutionOptions;
 class MasterElement;
 class ElemDataRequests;
 
-/** Hybrid turbulence for momentum equation
+/** Forcing stress for TAMS in momentum equation
  *
  */
 template <typename AlgTraits>
-class MomentumSSTTAMSForcingElemKernel : public Kernel
+class MomentumSSTTAMSForcingElemKernel : public NGPKernel<MomentumSSTTAMSForcingElemKernel<AlgTraits>>
 {
 public:
   MomentumSSTTAMSForcingElemKernel(
@@ -38,27 +38,26 @@ public:
     ScalarFieldType*,
     ElemDataRequests&);
 
-  virtual ~MomentumSSTTAMSForcingElemKernel();
+  KOKKOS_FUNCTION MomentumSSTTAMSForcingElemKernel() = default;
+
+  KOKKOS_FUNCTION virtual ~MomentumSSTTAMSForcingElemKernel() = default;
 
   // Perform pre-timestep work for the computational kernel
   virtual void setup(const TimeIntegrator&);
 
   using Kernel::execute;
+
+  KOKKOS_FUNCTION
   virtual void execute(
-    SharedMemView<DoubleType**>&,
-    SharedMemView<DoubleType*>&,
-    ScratchViews<DoubleType>&);
+    SharedMemView<DoubleType**, DeviceShmem>&,
+    SharedMemView<DoubleType*, DeviceShmem>&,
+    ScratchViews<DoubleType, DeviceTeamHandleType, DeviceShmem>&);
 
 private:
   double time_{0.0};
   double dt_{0.0};
-  int step_{0};
 
-  DoubleType pi_;
-
-  std::ofstream tmpFile;
-
-  MomentumSSTTAMSForcingElemKernel() = delete;
+  double pi_;
 
   unsigned velocityNp1_{stk::mesh::InvalidOrdinal};
   unsigned densityNp1_{stk::mesh::InvalidOrdinal};
@@ -80,11 +79,7 @@ private:
   const double betaStar_;
   const double forceFactor_;
 
-  const int* ipNodeMap_;
-
-  // scratch space
-  AlignedViewType<DoubleType[AlgTraits::numScvIp_][AlgTraits::nodesPerElement_]>
-    v_shape_function_{"v_shape_func"};
+  MasterElement* meSCV_{nullptr};
 };
 
 } // namespace nalu
