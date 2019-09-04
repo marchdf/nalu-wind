@@ -47,9 +47,6 @@ ComputeSSTTAMSAveragesNodeAlgorithm::ComputeSSTTAMSAveragesNodeAlgorithm(
   // save off data
   stk::mesh::MetaData& meta_data = realm_.meta_data();
 
-  coordinates_ = meta_data.get_field<VectorFieldType>(
-    stk::topology::NODE_RANK, realm_.get_coordinates_name());
-
   // instantaneous quantities
   if (meshMotion_) {
    throw std::runtime_error("SSTTAMSAverages: TAMS is not set up to handle mesh motion yet");  
@@ -89,8 +86,6 @@ ComputeSSTTAMSAveragesNodeAlgorithm::ComputeSSTTAMSAveragesNodeAlgorithm(
     stk::topology::NODE_RANK, "avg_res_adequacy_parameter");
 
   // Other quantities
-  visc_ = meta_data.get_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "viscosity");
   tvisc_ = meta_data.get_field<ScalarFieldType>(
     stk::topology::NODE_RANK, "turbulent_viscosity");
   alpha_ = meta_data.get_field<ScalarFieldType>(
@@ -147,7 +142,6 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
 
     // get other field data
     const double* tvisc = stk::mesh::field_data(*tvisc_, b);
-    const double* visc = stk::mesh::field_data(*visc_, b);
     double* alpha = stk::mesh::field_data(*alpha_, b);
 
     // get average field data
@@ -248,10 +242,6 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       // TODO: Allow for a different averaging timescale for production
       avgProd[k] = weightAvg * avgProd[k] + weightInst * instProd;
 
-      // Resolution adequacy parameter
-      // pointers to real data
-      const double* coords = stk::mesh::field_data(*coordinates_, b[k]);
-
       // get Mij field_data
       const double* p_Mij = stk::mesh::field_data(*Mij_, b[k]);
 
@@ -260,9 +250,9 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       double Q[3][3];
       double D[3][3];
 
-      for (unsigned i = 0; i < nDim; i++) {
+      for (int i = 0; i < nDim; i++) {
         const int iNdim = i * nDim;
-        for (unsigned j = 0; j < nDim; j++) {
+        for (int j = 0; j < nDim; j++) {
           Mij[i][j] = p_Mij[iNdim + j];
         }
       }
@@ -272,24 +262,24 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
 
       // initialize M43 to 0
       double M43[3][3];
-      for (unsigned i = 0; i < nDim; ++i)
-        for (unsigned j = 0; j < nDim; ++j)
+      for (int i = 0; i < nDim; ++i)
+        for (int j = 0; j < nDim; ++j)
           M43[i][j] = 0.0;
 
       const double fourThirds = 4.0 / 3.0;
 
       for (unsigned l = 0; l < nDim; l++) {
         const double D43 = stk::math::pow(D[l][l], fourThirds);
-        for (unsigned i = 0; i < nDim; i++) {
-          for (unsigned j = 0; j < nDim; j++) {
+        for (int i = 0; i < nDim; i++) {
+          for (int j = 0; j < nDim; j++) {
             M43[i][j] += Q[i][l] * Q[j][l] * D43;
           }
         }
       }
 
       // zeroing out tesnors
-      for (unsigned i = 0; i < nDim; ++i) {
-        for (unsigned j = 0; j < nDim; ++j) {
+      for (int i = 0; i < nDim; ++i) {
+        for (int j = 0; j < nDim; ++j) {
           p_tauSGRS[i * nDim + j] = 0.0;
           p_tauSGET[i * nDim + j] = 0.0;
           p_tau[i * nDim + j] = 0.0;
@@ -302,9 +292,9 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       const double epsilon13 =
         stk::math::pow(betaStar_ * tke[k] * sdr[k], 1.0 / 3.0);
 
-      for (unsigned i = 0; i < nDim; ++i) {
+      for (int i = 0; i < nDim; ++i) {
 
-        for (unsigned j = 0; j < nDim; ++j) {
+        for (int j = 0; j < nDim; ++j) {
           // Calculate tauSGRS_ij = 2*alpha*nu_t*<S_ij> where nu_t comes from
           // the SST model and <S_ij> is the strain rate tensor based on the
           // mean quantities... i.e this is (tauSGRS = alpha*tauSST)
@@ -329,15 +319,15 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
 
       // Calculate the full subgrid stress including the isotropic portion
       // FIXME: Do i need a rho in here?
-      for (unsigned i = 0; i < nDim; ++i)
-        for (unsigned j = 0; j < nDim; ++j)
+      for (int i = 0; i < nDim; ++i)
+        for (int j = 0; j < nDim; ++j)
           p_tau[i * nDim + j] = p_tauSGRS[i * nDim + j] + p_tauSGET[i * nDim + j] -
             ((i == j) ? 2.0 / 3.0 * alpha[k] * tke[k] : 0.0);
 
       // Calculate the SGS production PSGS_ij = 1/2(tau_ik*djuk + tau_jk*diuk)
       // where diuj is the instantaneous velocity gradients
-      for (unsigned i = 0; i < nDim; ++i) {
-        for (unsigned j = 0; j < nDim; ++j) {
+      for (int i = 0; i < nDim; ++i) {
+        for (int j = 0; j < nDim; ++j) {
           for (unsigned l = 0; l < nDim; ++l) {
             p_Psgs[i * nDim + j] += p_tau[i * nDim + l] * dudx[l * nDim + j] +
                                      p_tau[j * nDim + l] * dudx[l * nDim + i];
@@ -346,8 +336,8 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
         }
       }
 
-      for (unsigned i = 0; i < nDim; ++i) {
-        for (unsigned j = 0; j < nDim; ++j) {
+      for (int i = 0; i < nDim; ++i) {
+        for (int j = 0; j < nDim; ++j) {
           PM[i][j] = 0.0;
           for (unsigned l = 0; l < nDim; ++l)
             PM[i][j] += p_Psgs[i * nDim + l] * Mij[l][j];
@@ -359,8 +349,8 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       const double PMscale = std::pow(1.5 * alpha[k] * v2, -1.5);
       if (v2 == 0.0 || avgTime[k] == 0.0)
         throw std::runtime_error("SSTTAMSParams: v2 or avgTime is 0, will cause NaN");
-      for (unsigned i = 0; i < nDim; ++i)
-        for (unsigned j = 0; j < nDim; ++j)
+      for (int i = 0; i < nDim; ++i)
+        for (int j = 0; j < nDim; ++j)
           PM[i][j] = PM[i][j] * PMscale;
 
       // FIXME: PM is not symmetric

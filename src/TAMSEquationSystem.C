@@ -304,9 +304,9 @@ TAMSEquationSystem::register_interior_algorithm(stk::mesh::Part* part)
 //--------------------------------------------------------------------------
 void
 TAMSEquationSystem::register_inflow_bc(
-  stk::mesh::Part* part,
+  stk::mesh::Part* /*part*/,
   const stk::topology& /*theTopo*/,
-  const InflowBoundaryConditionData& inflowBCData)
+  const InflowBoundaryConditionData& /*inflowBCData*/)
 {
   // Nothing to do here...
 }
@@ -316,9 +316,9 @@ TAMSEquationSystem::register_inflow_bc(
 //--------------------------------------------------------------------------
 void
 TAMSEquationSystem::register_open_bc(
-  stk::mesh::Part* part,
+  stk::mesh::Part* /*part*/,
   const stk::topology& /*theTopo*/,
-  const OpenBoundaryConditionData& openBCData)
+  const OpenBoundaryConditionData& /*openBCData*/)
 {
   // Nothing to do here...
 }
@@ -328,9 +328,9 @@ TAMSEquationSystem::register_open_bc(
 //--------------------------------------------------------------------------
 void
 TAMSEquationSystem::register_wall_bc(
-  stk::mesh::Part* part,
+  stk::mesh::Part* /*part*/,
   const stk::topology& /*theTopo*/,
-  const WallBoundaryConditionData& wallBCData)
+  const WallBoundaryConditionData& /*wallBCData*/)
 {
   // Nothing to do here...
 }
@@ -340,9 +340,9 @@ TAMSEquationSystem::register_wall_bc(
 //--------------------------------------------------------------------------
 void
 TAMSEquationSystem::register_symmetry_bc(
-  stk::mesh::Part* part,
+  stk::mesh::Part* /*part*/,
   const stk::topology& /*theTopo*/,
-  const SymmetryBoundaryConditionData& symmetryBCData)
+  const SymmetryBoundaryConditionData& /*symmetryBCData*/)
 {
   // Nothing to do here...
 }
@@ -352,7 +352,7 @@ TAMSEquationSystem::register_symmetry_bc(
 //--------------------------------------------------------------------------
 void
 TAMSEquationSystem::register_non_conformal_bc(
-  stk::mesh::Part* part, const stk::topology& /*theTopo*/)
+  stk::mesh::Part* /*part*/, const stk::topology& /*theTopo*/)
 {
   // Nothing to do here...
 }

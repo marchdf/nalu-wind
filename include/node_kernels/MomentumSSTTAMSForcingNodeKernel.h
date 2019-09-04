@@ -70,7 +70,6 @@ private:
   unsigned minDistID_{stk::mesh::InvalidOrdinal};
   unsigned avgVelocityID_{stk::mesh::InvalidOrdinal};
   unsigned avgDensityID_{stk::mesh::InvalidOrdinal};
-  unsigned avgTimeID_{stk::mesh::InvalidOrdinal};
   unsigned avgResAdeqID_{stk::mesh::InvalidOrdinal};
 
   const double betaStar_;

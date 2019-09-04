@@ -77,7 +77,7 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
   const stk::mesh::FastMeshIndex& nodeR)
 {
   const int ndim = nDim_;
-
+  std::cerr << "hello" << std::endl;
   // Scratch work arrays
   // Make this variable?? TAMS only works in 3D...
   NALU_ALIGNED EdgeKernelTraits::DblType av[3];
@@ -124,8 +124,6 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
     0.5 * (tvisc_.get(nodeL, 0) + tvisc_.get(nodeR, 0));
   const EdgeKernelTraits::DblType avgRhoIp =
     0.5 * (avgDensity_.get(nodeL, 0) + avgDensity_.get(nodeR, 0));
-  const EdgeKernelTraits::DblType fluctRhoIp =
-    0.5 * (density_.get(nodeL, 0) + density_.get(nodeR, 0)) - avgRhoIp;
   const EdgeKernelTraits::DblType tkeIp = 0.5 * (stk::math::max(tke_.get(nodeL, 0), 1.0e-12) + 
                                                  stk::math::max(tke_.get(nodeR, 0), 1.0e-12));
   const EdgeKernelTraits::DblType sdrIp = 0.5 * (stk::math::max(sdr_.get(nodeL, 0), 1.0e-12) + 
@@ -208,10 +206,6 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
     // Hybrid turbulence diffusion term; -(mu^jk*dui/dxk + mu^ik*duj/dxk -
     // 2/3*rho*tke*del_ij)*Aj
     for (int j = 0; j < ndim; ++j) {
-      const EdgeKernelTraits::DblType avgUjIp =
-        0.5 * (avgVelocity_.get(nodeL, j) + avgVelocity_.get(nodeR, j));
-      const EdgeKernelTraits::DblType fluctUjIp =
-        0.5 * (velocity_.get(nodeL, j) + velocity_.get(nodeR, j)) - avgUjIp;
 
       // -mut^jk*dui/dxk*A_j; fixed i over j loop; see below..
       EdgeKernelTraits::DblType rhsfacDiff_i = 0.0;

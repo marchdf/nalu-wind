@@ -202,7 +202,6 @@ ComputeTAMSAvgMdotElemAlgorithm::execute()
           rhoIp += r * nodalRho;
           avgTimeIp += r * nodalAvgTime;
 
-          const int offSetDnDx = nDim * nodesPerElement * ip + ic * nDim;
           for (int j = 0; j < nDim; ++j) {
             p_uIp[j] += r * p_vrtm[nDim * ic + j];
             p_rho_uIp[j] += r * nodalRho * p_vrtm[nDim * ic + j];

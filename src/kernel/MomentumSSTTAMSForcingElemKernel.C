@@ -50,7 +50,6 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::MomentumSSTTAMSForcingElemKernel(
   Mij_ = get_field_ordinal(metaData, "metric_tensor");
 
   avgVelocity_ = get_field_ordinal(metaData, "average_velocity");
-  avgDensity_ = get_field_ordinal(metaData, "average_density");
   avgTime_ = get_field_ordinal(metaData, "average_time");
 
   avgResAdeq_ = get_field_ordinal(metaData, "avg_res_adequacy_parameter");
@@ -73,7 +72,6 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::MomentumSSTTAMSForcingElemKernel(
   dataPreReqs.add_gathered_nodal_field(tkeNp1_, 1);
   dataPreReqs.add_gathered_nodal_field(sdrNp1_, 1);
   dataPreReqs.add_gathered_nodal_field(avgVelocity_, AlgTraits::nDim_);
-  dataPreReqs.add_gathered_nodal_field(avgDensity_, 1);
   dataPreReqs.add_gathered_nodal_field(alpha_, 1);
   dataPreReqs.add_gathered_nodal_field(avgTime_, 1);
   dataPreReqs.add_gathered_nodal_field(minDist_, 1);
@@ -91,14 +89,14 @@ void
 MomentumSSTTAMSForcingElemKernel<AlgTraits>::setup(
   const TimeIntegrator& timeIntegrator)
 {
-  const double time_ = timeIntegrator.get_current_time();
-  const double dt_ = timeIntegrator.get_time_step();
+  time_ = timeIntegrator.get_current_time();
+  dt_ = timeIntegrator.get_time_step();
 }
 
 template <typename AlgTraits>
 void
 MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
-  SharedMemView<DoubleType**, DeviceShmem>& lhs,
+  SharedMemView<DoubleType**, DeviceShmem>& /*lhs*/,
   SharedMemView<DoubleType*, DeviceShmem>& rhs,
   ScratchViews<DoubleType, DeviceTeamHandleType, DeviceShmem>& scratchViews)
 {
@@ -115,7 +113,6 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
   const auto& v_tkeNp1 = scratchViews.get_scratch_view_1D(tkeNp1_);
   const auto& v_sdrNp1 = scratchViews.get_scratch_view_1D(sdrNp1_);
   const auto& v_avgU = scratchViews.get_scratch_view_2D(avgVelocity_);
-  const auto& v_avgRho = scratchViews.get_scratch_view_1D(avgDensity_);
   const auto& v_alpha = scratchViews.get_scratch_view_1D(alpha_);
   const auto& v_avgTime = scratchViews.get_scratch_view_1D(avgTime_);
   const auto& v_minDist = scratchViews.get_scratch_view_1D(minDist_);
@@ -125,7 +122,6 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
   auto& meViews = scratchViews.get_me_views(CURRENT_COORDINATES);
   const auto& v_scv_volume = meViews.scv_volume;
   auto& v_shape_function = meViews.scv_shape_fcn;
-  const auto& v_dndx = meViews.dndx_scv;
   const auto* ipNodeMap = meSCV_->ipNodeMap();
 
   for (int ip = 0; ip < AlgTraits::numScvIp_; ++ip) {

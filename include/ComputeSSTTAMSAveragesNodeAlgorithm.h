@@ -27,7 +27,6 @@ public:
   const double CMdeg_;
   const bool meshMotion_;
 
-  VectorFieldType* coordinates_{nullptr};
   VectorFieldType* velocityRTM_{nullptr};
   ScalarFieldType* pressure_{nullptr};
   ScalarFieldType* density_{nullptr};
@@ -41,7 +40,6 @@ public:
   ScalarFieldType* avgTime_{nullptr};
   GenericFieldType* avgDudx_{nullptr};
   ScalarFieldType* avgProd_{nullptr};
-  ScalarFieldType* visc_{nullptr};
   ScalarFieldType* tvisc_{nullptr};
   ScalarFieldType* alpha_{nullptr};
   ScalarFieldType* resAdeq_{nullptr};

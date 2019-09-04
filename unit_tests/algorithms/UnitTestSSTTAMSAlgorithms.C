@@ -12,7 +12,7 @@
 
 #include "TurbViscSSTTAMSAlgorithm.h"
 
-TEST_F(TestTurbulenceAlgorithm, testturbvisctamssstalgorithm)
+TEST_F(TestTurbulenceAlgorithm, testturbviscssttamsalgorithm)
 {
   sierra::nalu::Realm& realm = this->create_realm();
 
