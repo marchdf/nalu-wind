@@ -231,9 +231,7 @@ struct EdgeKernelHelperObjects : public HelperObjectsBase
 
   virtual void execute() override
   {
-    std::cerr << "hello before " << std::endl;
     edgeAlg->execute();
-    std::cerr << "hello after " << std::endl;
 
     Kokkos::deep_copy(linsys->hostlhs_, linsys->lhs_);
     Kokkos::deep_copy(linsys->hostrhs_, linsys->rhs_);

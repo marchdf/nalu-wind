@@ -82,11 +82,6 @@ void sdr_test_function(
   const VectorFieldType& coordinates,
   ScalarFieldType& sdr);
 
-void tdr_test_function(
-  const stk::mesh::BulkData& bulk,
-  const VectorFieldType& coordinates,
-  ScalarFieldType& tdr);
-
 void dwdx_test_function(
   const stk::mesh::BulkData& bulk,
   const VectorFieldType& coordinates,
@@ -742,8 +737,6 @@ public:
     : LowMachKernelHex8Mesh(),
       tke_(&meta_.declare_field<ScalarFieldType>(
         stk::topology::NODE_RANK, "turbulent_ke")),
-      tdr_(&meta_.declare_field<ScalarFieldType>(
-        stk::topology::NODE_RANK, "total_dissipation_rate")),
       sdr_(&meta_.declare_field<ScalarFieldType>(
         stk::topology::NODE_RANK, "specific_dissipation_rate")),
       visc_(&meta_.declare_field<ScalarFieldType>(
@@ -778,7 +771,6 @@ public:
         &meta_.declare_field<VectorFieldType>(stk::topology::NODE_RANK, "dwdx"))
   {
     stk::mesh::put_field_on_mesh(*tke_, meta_.universal_part(), 1, nullptr);
-    stk::mesh::put_field_on_mesh(*tdr_, meta_.universal_part(), 1, nullptr);
     stk::mesh::put_field_on_mesh(*sdr_, meta_.universal_part(), 1, nullptr);
     stk::mesh::put_field_on_mesh(*visc_, meta_.universal_part(), 1, nullptr);
     stk::mesh::put_field_on_mesh(*tvisc_, meta_.universal_part(), 1, nullptr);
@@ -818,7 +810,6 @@ public:
     stk::mesh::field_fill(0.7, *minDist_);
     stk::mesh::field_fill(0.2, *Mij_);
     unit_test_kernel_utils::tke_test_function(bulk_, *coordinates_, *tke_);
-    unit_test_kernel_utils::tdr_test_function(bulk_, *coordinates_, *tdr_);
     unit_test_kernel_utils::sdr_test_function(bulk_, *coordinates_, *sdr_);
     unit_test_kernel_utils::alpha_test_function(bulk_, *coordinates_, *alpha_);
     unit_test_kernel_utils::sst_f_one_blending_test_function(bulk_, *coordinates_, *fOneBlend_);
@@ -829,7 +820,6 @@ public:
 }
 
   ScalarFieldType* tke_{nullptr};
-  ScalarFieldType* tdr_{nullptr};
   ScalarFieldType* sdr_{nullptr};
   ScalarFieldType* visc_{nullptr};
   ScalarFieldType* tvisc_{nullptr};

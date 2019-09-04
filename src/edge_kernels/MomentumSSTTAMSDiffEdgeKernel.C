@@ -77,7 +77,7 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
   const stk::mesh::FastMeshIndex& nodeR)
 {
   const int ndim = nDim_;
-  std::cerr << "hello" << std::endl;
+
   // Scratch work arrays
   // Make this variable?? TAMS only works in 3D...
   NALU_ALIGNED EdgeKernelTraits::DblType av[3];

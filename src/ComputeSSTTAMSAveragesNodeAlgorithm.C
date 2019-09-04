@@ -123,7 +123,6 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
   VectorFieldType& velocityNp1 = velocityRTM_->field_of_state(stk::mesh::StateNP1);
   ScalarFieldType& densityNp1 = density_->field_of_state(stk::mesh::StateNP1);
   //ScalarFieldType& tkeNp1 = turbKineticEnergy_->field_of_state(stk::mesh::StateNP1);
-  //ScalarFieldType& tdrNp1 = specDissipationRate_->field_of_state(stk::mesh::StateNP1);
 
   // fill in nodal values
   stk::mesh::Selector s_all_nodes
@@ -268,7 +267,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
 
       const double fourThirds = 4.0 / 3.0;
 
-      for (unsigned l = 0; l < nDim; l++) {
+      for (int l = 0; l < nDim; l++) {
         const double D43 = stk::math::pow(D[l][l], fourThirds);
         for (int i = 0; i < nDim; i++) {
           for (int j = 0; j < nDim; j++) {
@@ -303,7 +302,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
           p_tauSGRS[i * nDim + j] = avgDudx[i * nDim + j] + avgDudx[j * nDim + i];
           p_tauSGRS[i * nDim + j] *= coeffSGRS;
 
-          for (unsigned l = 0; l < nDim; ++l) {
+          for (int l = 0; l < nDim; ++l) {
             // Calculate tauSGET_ij = CM43*<eps>^(1/3)*(M43_ik*dkuj' +
             // M43_jkdkui') where <eps> is the mean dissipation backed out from
             // the SST mean k and mean omega and dkuj' is the fluctuating
@@ -328,7 +327,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       // where diuj is the instantaneous velocity gradients
       for (int i = 0; i < nDim; ++i) {
         for (int j = 0; j < nDim; ++j) {
-          for (unsigned l = 0; l < nDim; ++l) {
+          for (int l = 0; l < nDim; ++l) {
             p_Psgs[i * nDim + j] += p_tau[i * nDim + l] * dudx[l * nDim + j] +
                                      p_tau[j * nDim + l] * dudx[l * nDim + i];
           }
@@ -339,7 +338,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       for (int i = 0; i < nDim; ++i) {
         for (int j = 0; j < nDim; ++j) {
           PM[i][j] = 0.0;
-          for (unsigned l = 0; l < nDim; ++l)
+          for (int l = 0; l < nDim; ++l)
             PM[i][j] += p_Psgs[i * nDim + l] * Mij[l][j];
         }
       }

@@ -16,14 +16,14 @@ namespace {
 namespace hex8_golds {
 namespace tams_diff {
 static constexpr double rhs[24] = {
-  -0.030384682662804, 0.041596045758279,  0,
-  0.026723540828453,  0.016353591430733,  0,
-  -0.022779728052401, -0.037997410145352, 0,
-  0.026440869886752,  -0.01995222704366,  0,
-  -0.030447289315407, 0.036917451994842,  0,
-  0.026702442634606,  0.014707584645445,  0,
-  -0.018266239575788, -0.033258600480508, 0,
-  0.022011086256589,  -0.018366436159778, 0,
+  0.074164348914169,  -0.05174162272322,  0,
+  0.038157425923915,  0.047996838594458,  0,
+  -0.070206299364667, -0.051347977030839, 0,
+  -0.042115475473418, 0.055092761159602,  0,
+  0.064681948082091,  -0.05174162272322,  0,
+  0.034882400755462,  0.047937653804639,  0,
+  -0.060554980496557, -0.042494699616037, 0,
+  -0.039009368340996, 0.046298668534618,  0,
 };
 
 static constexpr double lhs[24][24] = {
@@ -67,15 +67,15 @@ TEST_F(TAMSKernelHex8Mesh, NGP_tams_diff)
   solnOpts_.meshMotion_ = false;
   solnOpts_.meshDeformation_ = false;
   solnOpts_.externalMeshDeformation_ = false;
+  solnOpts_.includeDivU_ = false;
   solnOpts_.alphaMap_["velocity"] = 0.0;
   solnOpts_.alphaUpwMap_["velocity"] = 0.0;
   solnOpts_.upwMap_["velocity"] = 0.0;
+  solnOpts_.initialize_turbulence_constants();
 
   unit_test_utils::EdgeKernelHelperObjects helperObjs(bulk_, stk::topology::HEX_8, 3, partVec_[0]);
-  std::cerr << "hello from the unit test " << std::endl;
 
   helperObjs.edgeAlg->add_kernel<sierra::nalu::MomentumSSTTAMSDiffEdgeKernel>(bulk_, solnOpts_);
-  std::cerr << "hello from the unit test " << std::endl;
     
   helperObjs.execute();
 

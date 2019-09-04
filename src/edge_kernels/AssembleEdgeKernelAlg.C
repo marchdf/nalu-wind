@@ -27,8 +27,6 @@ AssembleEdgeKernelAlg::~AssembleEdgeKernelAlg()
 void
 AssembleEdgeKernelAlg::execute()
 {
-  std::cerr << "hello from AssembleEdgeKernelAlg " << std::endl;
-
   const size_t numKernels = edgeKernels_.size();
   if (numKernels < 1)
     return;

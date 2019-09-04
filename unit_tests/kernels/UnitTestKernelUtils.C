@@ -162,18 +162,6 @@ struct TrigFieldFunction
       std::sin(a * pi * z));
   }
 
-  void tdr(const double* coords, double* qField) const
-  {
-    double x = coords[0];
-    double y = coords[1];
-    double z = coords[2];
-
-    qField[0] = 2*tdrnot + tdrnot * (
-      std::cos(a * pi * x) *
-      std::sin(a * pi * y) *
-      std::sin(a * pi * z));
-  }
-
   void dwdx(const double* coords, double* qField) const
   {
     const double x = coords[0];
@@ -279,9 +267,6 @@ private:
   /// Factor for sdr field
   static constexpr double sdrnot{1.0};
 
-  /// Factor for sdr field
-  static constexpr double tdrnot{1.0};
-
   /// Factor for tvisc field
   static constexpr double tviscnot{1.0};
 
@@ -321,8 +306,6 @@ void init_trigonometric_field(
     funcPtr = &TrigFieldFunction::density;
   else if (fieldName == "turbulent_ke")
     funcPtr = &TrigFieldFunction::tke;
-  else if (fieldName == "total_dissipation_rate")
-      funcPtr = &TrigFieldFunction::tdr;
   else if (fieldName == "k_ratio")
     funcPtr = &TrigFieldFunction::alpha;
   else if (fieldName == "dkdx")
@@ -470,14 +453,6 @@ void sdr_test_function(
   ScalarFieldType& sdr)
 {
   init_trigonometric_field(bulk, coordinates, sdr);
-}
-
-void tdr_test_function(
-  const stk::mesh::BulkData& bulk,
-  const VectorFieldType& coordinates,
-  ScalarFieldType& tdr)
-{
-  init_trigonometric_field(bulk, coordinates, tdr);
 }
 
 void dwdx_test_function(
