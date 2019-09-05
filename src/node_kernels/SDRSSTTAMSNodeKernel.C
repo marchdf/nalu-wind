@@ -99,7 +99,6 @@ SDRSSTTAMSNodeKernel::execute(
 
   rhs(0) += (Pw - Dw + Sw) * dualVolume;
 
-  // FIXME: Is this lhs(0) or lhs(0,0)? Or something else...
   lhs(0, 0) +=
     (2.0 * beta * rho * sdr + stk::math::max(Sw / sdr, 0.0)) * dualVolume;
 }

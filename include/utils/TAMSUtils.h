@@ -29,7 +29,6 @@ get_M43_constant(T D[dim][dim], const double CMdeg)
                   0.049139605169403,  0.002926283060215,  0.002672790587853,
                   0.000486437925728,  0.002136258066662,  0.005113058518679};
 
-  // FIXME: Can we find a more elegant way to sort the three eigenvalues...
   T smallestEV = stk::math::min(D[0][0], stk::math::min(D[1][1], D[2][2]));
   T largestEV = stk::math::max(D[0][0], stk::math::max(D[1][1], D[2][2]));
   T middleEV = stk::math::if_then_else(

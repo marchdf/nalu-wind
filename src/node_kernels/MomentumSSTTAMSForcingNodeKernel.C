@@ -208,54 +208,24 @@ MomentumSSTTAMSForcingNodeKernel::execute(
 
   const NodeKernelTraits::DblType a_sign = stk::math::tanh(arg);
 
-  NodeKernelTraits::DblType Sa = a_sign;
-
   const NodeKernelTraits::DblType a_kol =
     stk::math::min(BL_KOL * stk::math::sqrt(mu * eps / rho) / tke, 1.0);
 
-  // FIXME: Can I do a compound if statement with if_then... it was not
-  // working...
-  for (int simdIndex = 0; simdIndex < stk::simd::ndoubles; ++simdIndex) {
-    double tmp_asign = stk::simd::get_data(a_sign, simdIndex);
-    double tmp_akol = stk::simd::get_data(a_kol, simdIndex);
-    double tmp_alpha = stk::simd::get_data(alpha, simdIndex);
-    double tmp_Sa = stk::simd::get_data(Sa, simdIndex);
+  const NodeKernelTraits::DblType Sa = stk::math::if_then_else(
+      (a_sign < 0.0),
+      stk::math::if_then_else(
+        (alpha <= a_kol), a_sign - (1.0 + a_kol - alpha) * a_sign,
+        a_sign),
+      stk::math::if_then_else(
+        (alpha >= 1.0), a_sign - alpha * a_sign, a_sign));
 
-    if (tmp_asign < 0.0) {
-      if (tmp_alpha <= tmp_akol)
-        tmp_Sa = tmp_Sa - (1.0 + tmp_akol - tmp_alpha) * tmp_asign;
-    } else {
-      if (tmp_alpha >= 1.0)
-        tmp_Sa = tmp_Sa - tmp_alpha * tmp_asign;
-    }
-    stk::simd::set_data(Sa, simdIndex, tmp_Sa);
-  }
-
-  const NodeKernelTraits::DblType fd_temp = avgResAdeq;
-
-  NodeKernelTraits::DblType C_F;
-  // FIXME: Can I do a compound if statement with if_then... it was not
-  // working...
-  for (int simdIndex = 0; simdIndex < stk::simd::ndoubles; ++simdIndex) {
-    double tmp_fd = stk::simd::get_data(fd_temp, simdIndex);
-    double tmp_prodr = stk::simd::get_data(prod_r, simdIndex);
-    double tmp_CF = stk::simd::get_data(C_F, simdIndex);
-    double tmp_Ftarget = stk::simd::get_data(F_target, simdIndex);
-    double tmp_Sa = stk::simd::get_data(Sa, simdIndex);
-
-    if ((tmp_fd < 1.0) && (tmp_prodr >= 0.0))
-      tmp_CF = -1.0 * tmp_Ftarget * tmp_Sa;
-    else
-      tmp_CF = 0.0;
-    stk::simd::set_data(C_F, simdIndex, tmp_CF);
-  }
-
-  const NodeKernelTraits::DblType norm = C_F;
+  const NodeKernelTraits::DblType C_F = stk::math::if_then_else(
+      ((avgResAdeq < 1.0) && (prod_r >= 0.0)), -1.0 * F_target * Sa, 0.0);
 
   // Now we determine the actual forcing field
-  NodeKernelTraits::DblType gX = norm * hX;
-  NodeKernelTraits::DblType gY = norm * hY;
-  NodeKernelTraits::DblType gZ = norm * hZ;
+  NodeKernelTraits::DblType gX = C_F * hX;
+  NodeKernelTraits::DblType gY = C_F * hY;
+  NodeKernelTraits::DblType gZ = C_F * hZ;
 
   // TODO: Assess viability of first approach where we don't solve a poisson
   // problem and allow the field be divergent, which should get projected out

@@ -70,7 +70,6 @@ TKESSTTAMSNodeKernel::execute(
 
   rhs(0) += (Pk - Dk) * dualVolume;
 
-  // FIXME: Is this lhs(0) or lhs(0,0)? Or something else...
   lhs(0, 0) += tkeFac * dualVolume;
 }
 

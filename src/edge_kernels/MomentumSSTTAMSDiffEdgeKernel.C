@@ -91,8 +91,6 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
   EdgeKernelTraits::DblType D[EdgeKernelTraits::NDimMax][EdgeKernelTraits::NDimMax];
   for (int i = 0; i < ndim; i++)
     for (int j = 0; j < ndim; j++)
-      // FIXME: Is this right for accessing 2D array of nodal Mij, is it 1D or
-      // 2D??
       Mij[i][j] = 0.5 * (nodalMij_.get(nodeL, i * ndim + j) +
                          nodalMij_.get(nodeR, i * ndim + j));
 
