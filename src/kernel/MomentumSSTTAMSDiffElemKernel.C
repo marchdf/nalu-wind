@@ -193,21 +193,15 @@ MomentumSSTTAMSDiffElemKernel<AlgTraits>::execute(
       rhs(indexR) += avgDivUstress;
     }
 
-    // FIXME: Does this need a rho in it?
     const DoubleType epsilon13Scs =
       stk::math::pow(betaStar_ * tkeScs * sdrScs, 1.0 / 3.0);
 
     for (int ic = 0; ic < AlgTraits::nodesPerElement_; ++ic) {
 
-      // Related to LHS, currently unused: FIXME: add some implicitness
+      // Related to LHS
       const int icNdim = ic * AlgTraits::nDim_;
 
       for (int i = 0; i < AlgTraits::nDim_; ++i) {
-
-        // FIXME: Don't believe we need these terms...
-        // tke stress term
-        // const DoubleType twoThirdRhoTke =
-        //  2.0 / 3.0 * alphaScs * rhoScs * tkeScs * v_scs_areav(ip, i);
 
         const int indexL = ilNdim + i;
         const int indexR = irNdim + i;
@@ -225,11 +219,6 @@ MomentumSSTTAMSDiffElemKernel<AlgTraits>::execute(
           // -mut^jk*dui/dxk*A_j; fixed i over j loop; see below..
           DoubleType lhsfacDiff_i = 0.0;
           for (int k = 0; k < AlgTraits::nDim_; ++k) {
-            // FIXME: I need to verify this form, fluctRho or avgRho, right
-            // indices on axj and dndx
-            // ..., do I need a deviatoric part only...
-            // fluctRho will be 0 for incompressible, so if that's the right
-            // term, need a better way to handle it, probably up above...
             lhsfacDiff_i += -avgRhoScs * CM43 * epsilon13Scs * M43[j][k] *
                             v_dndx(ip, ic, k) * axj;
           }
@@ -245,7 +234,6 @@ MomentumSSTTAMSDiffElemKernel<AlgTraits>::execute(
           // -mut^ik*duj/dxk*A_j
           DoubleType lhsfacDiff_j = 0.0;
           for (int k = 0; k < AlgTraits::nDim_; ++k) {
-            // FIXME: See above notes...
             lhsfacDiff_j += -avgRhoScs * CM43 * epsilon13Scs * M43[i][k] *
                             v_dndx(ip, ic, k) * axj;
           }
@@ -272,10 +260,6 @@ MomentumSSTTAMSDiffElemKernel<AlgTraits>::execute(
         const DoubleType fluctUi = v_uNp1(ic, i) - v_avgU(ic, i);
         const DoubleType avgUi = v_avgU(ic, i);
 
-        // FIXME: Verify we shouldn't need these 2/3TKE terms...
-        // rhs(indexL) -= lhs_riC_i * ui + twoThirdRhoTke + lhs_riCSGRS_i *
-        // avgUi + avgTwoThirdRhoTke; rhs(indexR) += lhs_riC_i * ui +
-        // twoThirdRhoTke + lhs_riCSGRS_i * avgUi + avgTwoThirdRhoTke;
         rhs(indexL) -= lhs_riC_i * fluctUi + lhs_riCSGRS_i * avgUi;
         rhs(indexR) += lhs_riC_i * fluctUi + lhs_riCSGRS_i * avgUi;
       }

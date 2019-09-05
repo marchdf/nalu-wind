@@ -119,14 +119,14 @@ MomentumSSTTAMSForcingNodeKernel::execute(
   NodeKernelTraits::DblType length =
     FORCING_CL * stk::math::pow(alpha * tke, 1.5) / eps;
   length = stk::math::max(
-    length, Ceta * (stk::math::pow(mu, 0.75) / stk::math::pow(eps, 0.25)));
+    length, Ceta * (stk::math::pow(mu/rho, 0.75) / stk::math::pow(eps, 0.25)));
   // FIXME: For channel, only want to clip in wall normal direction with
   // wallDist
   //        For other flows, will need a better approach?
   NodeKernelTraits::DblType lengthY = stk::math::min(length, wallDist);
 
   NodeKernelTraits::DblType T_alpha = alpha * tke / eps;
-  T_alpha = stk::math::max(T_alpha, Ct * stk::math::sqrt(mu / eps));
+  T_alpha = stk::math::max(T_alpha, Ct * stk::math::sqrt(mu / rho / eps));
   T_alpha = BL_T * T_alpha;
 
   const NodeKernelTraits::DblType Mij_00 = Mij_.get(node, 0);

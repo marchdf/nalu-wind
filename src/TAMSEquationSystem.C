@@ -432,6 +432,7 @@ TAMSEquationSystem::initial_work()
       double* tke = stk::mesh::field_data(tkeNp1, b);
       double* tvisc = stk::mesh::field_data(*tvisc_, b);
       double* avgProd = stk::mesh::field_data(*avgProduction_, b);
+      double* rho = stk::mesh::field_data(*avgDensity_, b);
 
       for (stk::mesh::Bucket::size_type k = 0; k < length; ++k) {
         // get velocity field data
@@ -451,7 +452,7 @@ TAMSEquationSystem::initial_work()
               0.5 * (avgDudx[i * nDim + j] + avgDudx[j * nDim + i]);
             tij[i * nDim + j] = 2.0 * tvisc[k] * avgSij;
           }
-          tij[i * nDim + i] -= 2.0 / 3.0 * tke[k];
+          tij[i * nDim + i] -= 2.0 / 3.0 * rho[k] * tke[k];
         }
 
         double* Pij = new double[nDim * nDim];

@@ -223,12 +223,11 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
         }
       }
 
-      // FIXME: I think we need a rho in here?
       double P_res = 0.0;
       for (int i = 0; i < nDim; ++i) {
         for (int j = 0; j < nDim; ++j) {
           P_res += avgDudx[i * nDim + j] *
-                   ((avgVel[i] - vel[i]) * (avgVel[j] - vel[j]));
+                   (avgRho[k] * (avgVel[i] - vel[i]) * (avgVel[j] - vel[j]));
         }
       }
 
@@ -317,11 +316,10 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       }
 
       // Calculate the full subgrid stress including the isotropic portion
-      // FIXME: Do i need a rho in here?
       for (int i = 0; i < nDim; ++i)
         for (int j = 0; j < nDim; ++j)
           p_tau[i * nDim + j] = p_tauSGRS[i * nDim + j] + p_tauSGET[i * nDim + j] -
-            ((i == j) ? 2.0 / 3.0 * alpha[k] * tke[k] : 0.0);
+            ((i == j) ? 2.0 / 3.0 * avgRho[k] * alpha[k] * tke[k] : 0.0);
 
       // Calculate the SGS production PSGS_ij = 1/2(tau_ik*djuk + tau_jk*diuk)
       // where diuj is the instantaneous velocity gradients
@@ -344,7 +342,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       }
 
       // Scale PM first
-      const double v2 = 1.0 / 0.22 * (tvisc[k] / avgTime[k]);
+      const double v2 = 1.0 / 0.22 * (tvisc[k] / avgRho[k] / avgTime[k]);
       const double PMscale = std::pow(1.5 * alpha[k] * v2, -1.5);
       if (v2 == 0.0 || avgTime[k] == 0.0)
         throw std::runtime_error("SSTTAMSParams: v2 or avgTime is 0, will cause NaN");
@@ -361,7 +359,6 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       // Update the instantaneous resAdeq field
       resAdeq[k] = maxPM;
 
-      // FIXME: Limiters as in CDP...
       resAdeq[k] = std::min(resAdeq[k], 30.0);
 
       if (alpha[k] >= 1.0)

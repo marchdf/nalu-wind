@@ -188,7 +188,6 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
     avgDivU += avgdUidxj[i][i];
   }
 
-  // FIXME: Does this need a rho in it?
   const EdgeKernelTraits::DblType epsilon13Ip = stk::math::pow(betaStar_ * tkeIp * sdrIp, 1.0 / 3.0);
 
   for (int i = 0; i < ndim; ++i) {
@@ -208,10 +207,6 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
       // -mut^jk*dui/dxk*A_j; fixed i over j loop; see below..
       EdgeKernelTraits::DblType rhsfacDiff_i = 0.0;
       for (int k = 0; k < ndim; ++k) {
-        // FIXME: I need to verify this form, fluctRho or avgRho
-        // ..., do I need a deviatoric part only...
-        // fluctRho will be 0 for incompressible, so if that's the right
-        // term, need a better way to handle it, probably up above...
         rhsfacDiff_i += -avgRhoIp * CM43 * epsilon13Ip * M43[j][k] *
                         fluctdUidxj[i][k] * av[j];
       }
@@ -226,7 +221,6 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
       // -mut^ik*duj/dxk*A_j
       EdgeKernelTraits::DblType rhsfacDiff_j = 0.0;
       for (int k = 0; k < ndim; ++k) {
-        // FIXME: See above notes...
         rhsfacDiff_j += -avgRhoIp * CM43 * epsilon13Ip * M43[i][k] *
                         fluctdUidxj[j][k] * av[j];
       }

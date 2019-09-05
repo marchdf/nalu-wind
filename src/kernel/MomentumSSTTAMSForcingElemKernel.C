@@ -42,7 +42,7 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::MomentumSSTTAMSForcingElemKernel(
   pi_ = stk::math::acos(-1.0);
   const stk::mesh::MetaData& metaData = bulkData.mesh_meta_data();
   velocityNp1_ = get_field_ordinal(metaData, "velocity");
-  densityNp1_ = get_field_ordinal(metaData, "density");
+  densityNp1_ = get_field_ordinal(metaData, "average_density");
   tkeNp1_ = get_field_ordinal(metaData, "turbulent_ke");
 
   sdrNp1_ = get_field_ordinal(metaData, "specific_dissipation_rate");
@@ -195,13 +195,13 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
     DoubleType length =
       FORCING_CL * stk::math::pow(alphaScv * tkeScv, 1.5) / epsScv;
     length = stk::math::max(length,
-      Ceta * (stk::math::pow(muScv, 0.75) / stk::math::pow(epsScv, 0.25)));
+      Ceta * (stk::math::pow(muScv/rhoScv, 0.75) / stk::math::pow(epsScv, 0.25)));
     // FIXME: For channel, only want to clip in wall normal direction with wallDist
     //        For other flows, will need a better approach...
     DoubleType lengthY = stk::math::min(length, wallDistScv);
 
     DoubleType T_alpha = alphaScv * tkeScv / epsScv;
-    T_alpha = stk::math::max(T_alpha, Ct * stk::math::sqrt(muScv / epsScv));
+    T_alpha = stk::math::max(T_alpha, Ct * stk::math::sqrt(muScv / rhoScv / epsScv));
     T_alpha = BL_T * T_alpha;
 
     const DoubleType ceilLengthX =
@@ -286,9 +286,8 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
 
     DoubleType Sa = a_sign;
 
-    // FIXME: I need to straighten out this rho situation
     const DoubleType a_kol =
-      stk::math::min(BL_KOL * stk::math::sqrt(muScv * epsScv) / tkeScv, 1.0);
+      stk::math::min(BL_KOL * stk::math::sqrt(muScv * epsScv / rhoScv) / tkeScv, 1.0);
 
     // FIXME: Can I do a compound if statement with if_then... it was not
     // working...
