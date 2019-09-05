@@ -201,7 +201,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       }
 
       // Production averaging
-      double tij[nDim][nDim];
+      double tij[nalu_ngp::nDimMax][nalu_ngp::nDimMax];
       for (int i = 0; i < nDim; ++i) {
         for (int j = 0; j < nDim; ++j) {
           const double avgSij = 0.5 * (avgDudx[i * nDim + j] + 
@@ -211,7 +211,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
         tij[i][i] -= 2.0 / 3.0 * alpha[k] * tke[k] * avgRho[k];
       }
 
-      double Pij[nDim][nDim];
+      double Pij[nalu_ngp::nDimMax][nalu_ngp::nDimMax];
       for (int i = 0; i < nDim; ++i) {
         for (int j = 0; j < nDim; ++j) {
           Pij[i][j] = 0.0;
@@ -244,10 +244,10 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       // get Mij field_data
       const double* p_Mij = stk::mesh::field_data(*Mij_, b[k]);
 
-      double Mij[3][3];
-      double PM[3][3];
-      double Q[3][3];
-      double D[3][3];
+      double Mij[nalu_ngp::nDimMax][nalu_ngp::nDimMax];
+      double PM[nalu_ngp::nDimMax][nalu_ngp::nDimMax];
+      double Q[nalu_ngp::nDimMax][nalu_ngp::nDimMax];
+      double D[nalu_ngp::nDimMax][nalu_ngp::nDimMax];
 
       for (int i = 0; i < nDim; i++) {
         const int iNdim = i * nDim;
@@ -260,7 +260,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       EigenDecomposition::sym_diagonalize<double>(Mij, Q, D);
 
       // initialize M43 to 0
-      double M43[3][3];
+      double M43[nalu_ngp::nDimMax][nalu_ngp::nDimMax];
       for (int i = 0; i < nDim; ++i)
         for (int j = 0; j < nDim; ++j)
           M43[i][j] = 0.0;
@@ -286,7 +286,7 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
         }
       }
 
-      const double CM43 = tams_utils::get_M43_constant<double, 3>(D, CMdeg_);
+      const double CM43 = tams_utils::get_M43_constant<double, nalu_ngp::nDimMax>(D, CMdeg_);
 
       const double epsilon13 =
         stk::math::pow(betaStar_ * tke[k] * sdr[k], 1.0 / 3.0);

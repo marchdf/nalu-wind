@@ -10,9 +10,6 @@
 
 #include "edge_kernels/EdgeKernel.h"
 
-// FIXME: For nDimMax_, is this necessary?
-#include "AssembleEdgeSolverAlgorithm.h"
-
 #include "stk_mesh/base/BulkData.hpp"
 #include "stk_ngp/Ngp.hpp"
 

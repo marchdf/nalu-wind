@@ -79,18 +79,16 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
   const int ndim = nDim_;
 
   // Scratch work arrays
-  // Make this variable?? TAMS only works in 3D...
-  NALU_ALIGNED EdgeKernelTraits::DblType av[3];
+  NALU_ALIGNED EdgeKernelTraits::DblType av[EdgeKernelTraits::NDimMax];
 
   for (int d = 0; d < nDim_; d++) {
     av[d] = edgeAreaVec_.get(edge, d);
   }
 
   // Mij, eigenvectors and eigenvalues
-  // FIXME: make the 3 -> ndim
-  EdgeKernelTraits::DblType Mij[3][3];
-  EdgeKernelTraits::DblType Q[3][3];
-  EdgeKernelTraits::DblType D[3][3];
+  EdgeKernelTraits::DblType Mij[EdgeKernelTraits::NDimMax][EdgeKernelTraits::NDimMax];
+  EdgeKernelTraits::DblType Q[EdgeKernelTraits::NDimMax][EdgeKernelTraits::NDimMax];
+  EdgeKernelTraits::DblType D[EdgeKernelTraits::NDimMax][EdgeKernelTraits::NDimMax];
   for (int i = 0; i < ndim; i++)
     for (int j = 0; j < ndim; j++)
       // FIXME: Is this right for accessing 2D array of nodal Mij, is it 1D or
@@ -102,7 +100,7 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
 
   // At this point we have Q, the eigenvectors and D the eigenvalues of Mij,
   // so to create M43, we use Q D^(4/3) Q^T
-  EdgeKernelTraits::DblType M43[3][3];
+  EdgeKernelTraits::DblType M43[EdgeKernelTraits::NDimMax][EdgeKernelTraits::NDimMax];
   for (int i = 0; i < ndim; i++)
     for (int j = 0; j < ndim; j++)
       M43[i][j] = 0.0;
@@ -118,7 +116,7 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
   }
 
   // Compute CM43
-  EdgeKernelTraits::DblType CM43 = tams_utils::get_M43_constant<EdgeKernelTraits::DblType, 3>(D, CMdeg_);
+  EdgeKernelTraits::DblType CM43 = tams_utils::get_M43_constant<EdgeKernelTraits::DblType, EdgeKernelTraits::NDimMax>(D, CMdeg_);
 
   const EdgeKernelTraits::DblType muIp =
     0.5 * (tvisc_.get(nodeL, 0) + tvisc_.get(nodeR, 0));
@@ -131,8 +129,8 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
   const EdgeKernelTraits::DblType alphaIp =
     0.5 * (alpha_.get(nodeL, 0) + alpha_.get(nodeR, 0));
 
-  EdgeKernelTraits::DblType avgdUidxj[3][3];
-  EdgeKernelTraits::DblType fluctdUidxj[3][3];
+  EdgeKernelTraits::DblType avgdUidxj[EdgeKernelTraits::NDimMax][EdgeKernelTraits::NDimMax];
+  EdgeKernelTraits::DblType fluctdUidxj[EdgeKernelTraits::NDimMax][EdgeKernelTraits::NDimMax];
 
   EdgeKernelTraits::DblType axdx = 0.0;
   EdgeKernelTraits::DblType asq = 0.0;
@@ -201,7 +199,7 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
     const EdgeKernelTraits::DblType avgDivUstress =
       2.0 / 3.0 * alphaIp * muIp * avgDivU * av[i] * includeDivU_;
     smdata.rhs(0 + i) -= avgDivUstress;
-    smdata.rhs(3 + i) += avgDivUstress;
+    smdata.rhs(EdgeKernelTraits::NDimMax + i) += avgDivUstress;
 
     // Hybrid turbulence diffusion term; -(mu^jk*dui/dxk + mu^ik*duj/dxk -
     // 2/3*rho*tke*del_ij)*Aj
@@ -223,7 +221,7 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
         -alphaIp * muIp * avgdUidxj[i][j] * av[j];
 
       smdata.rhs(0 + i) -= rhsfacDiff_i + rhsSGRCfacDiff_i;
-      smdata.rhs(3 + i) += rhsfacDiff_i + rhsSGRCfacDiff_i;
+      smdata.rhs(EdgeKernelTraits::NDimMax + i) += rhsfacDiff_i + rhsSGRCfacDiff_i;
 
       // -mut^ik*duj/dxk*A_j
       EdgeKernelTraits::DblType rhsfacDiff_j = 0.0;
@@ -238,7 +236,7 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
         -alphaIp * muIp * avgdUidxj[j][i] * av[j];
 
       smdata.rhs(0 + i) -= rhsfacDiff_j + rhsSGRCfacDiff_j;
-      smdata.rhs(3 + i) += rhsfacDiff_j + rhsSGRCfacDiff_j;
+      smdata.rhs(EdgeKernelTraits::NDimMax + i) += rhsfacDiff_j + rhsSGRCfacDiff_j;
     }
   }
 }

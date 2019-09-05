@@ -10,6 +10,7 @@
 
 #include <Algorithm.h>
 #include <FieldTypeDef.h>
+#include <ngp_utils/NgpTypes.h>
 
 namespace sierra {
 namespace nalu {

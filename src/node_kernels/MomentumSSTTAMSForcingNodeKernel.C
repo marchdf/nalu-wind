@@ -80,10 +80,9 @@ MomentumSSTTAMSForcingNodeKernel::execute(
   const stk::mesh::FastMeshIndex& node)
 {
   // Scratch work arrays
-  // FIXME: Make this variable?? TAMS only works in 3D...
-  NALU_ALIGNED NodeKernelTraits::DblType coords[3]; // coordinates
-  NALU_ALIGNED NodeKernelTraits::DblType avgU[3];   // averageVelocity
-  NALU_ALIGNED NodeKernelTraits::DblType fluctU[3]; // fluctuatingVelocity
+  NALU_ALIGNED NodeKernelTraits::DblType coords[NodeKernelTraits::NDimMax]; // coordinates
+  NALU_ALIGNED NodeKernelTraits::DblType avgU[NodeKernelTraits::NDimMax];   // averageVelocity
+  NALU_ALIGNED NodeKernelTraits::DblType fluctU[NodeKernelTraits::NDimMax]; // fluctuatingVelocity
 
   const NodeKernelTraits::DblType dualVolume = dualNodalVolume_.get(node, 0);
 
