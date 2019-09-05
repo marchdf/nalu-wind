@@ -44,13 +44,10 @@ ComputeMetricTensorNodeAlgorithm::ComputeMetricTensorNodeAlgorithm(
                                                "metric_tensor");
   dualNodalVolume_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, 
                                                "dual_nodal_volume");
-
-  tmpFile.open("metricTensor.txt", std::fstream::app);
 }
 
 ComputeMetricTensorNodeAlgorithm::~ComputeMetricTensorNodeAlgorithm()
 {
-  tmpFile.close();
 }
 
 //--------------------------------------------------------------------------
