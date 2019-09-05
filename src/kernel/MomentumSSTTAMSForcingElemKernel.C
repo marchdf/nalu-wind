@@ -197,9 +197,7 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
       FORCING_CL * stk::math::pow(alphaScv * tkeScv, 1.5) / epsScv;
     length = stk::math::max(length,
       Ceta * (stk::math::pow(muScv/rhoScv, 0.75) / stk::math::pow(epsScv, 0.25)));
-    // FIXME: For channel, only want to clip in wall normal direction with wallDist
-    //        For other flows, will need a better approach...
-    DoubleType lengthY = stk::math::min(length, wallDistScv);
+    length = stk::math::min(length, wallDistScv);
 
     DoubleType T_alpha = alphaScv * tkeScv / epsScv;
     T_alpha = stk::math::max(T_alpha, Ct * stk::math::sqrt(muScv / rhoScv / epsScv));
@@ -208,7 +206,7 @@ MomentumSSTTAMSForcingElemKernel<AlgTraits>::execute(
     const DoubleType ceilLengthX =
       stk::math::max(length, 2.0 * w_MijElem[0][0]);
     const DoubleType ceilLengthY =
-      stk::math::max(lengthY, 2.0 * w_MijElem[1][1]);
+      stk::math::max(length, 2.0 * w_MijElem[1][1]);
     const DoubleType ceilLengthZ =
       stk::math::max(length, 2.0 * w_MijElem[2][2]);
 
