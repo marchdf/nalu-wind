@@ -159,6 +159,7 @@ TEST_F(TAMSKernelHex8Mesh, NGP_tams_forcing)
     bulk_, solnOpts_);
 
   sierra::nalu::TimeIntegrator timeIntegrator;
+  timeIntegrator.currentTime_ = 0.0;
   timeIntegrator.timeStepN_ = 0.1;
   timeIntegrator.timeStepNm1_ = 0.1;
   timeIntegrator.gamma1_ = 1.0;
