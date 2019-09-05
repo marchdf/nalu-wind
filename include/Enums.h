@@ -199,7 +199,8 @@ enum TurbulenceModelConstant {
   TM_yplus_crit = 24,
   TM_CMdeg = 25,
   TM_forFac = 26,
-  TM_END = 27
+  TM_v2cMu = 27,
+  TM_END = 28
 };
 
 static const std::string TurbulenceModelConstantNames[] = {
@@ -230,6 +231,7 @@ static const std::string TurbulenceModelConstantNames[] = {
   "yplus_crit",
   "CMdeg",
   "forcingFactor",
+  "v2cMu",
   "END"};
 
 enum ActuatorType {

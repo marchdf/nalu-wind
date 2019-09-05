@@ -21,6 +21,7 @@ MomentumSSTTAMSForcingNodeKernel::MomentumSSTTAMSForcingNodeKernel(
   : NGPNodeKernel<MomentumSSTTAMSForcingNodeKernel>(),
     betaStar_(solnOpts.get_turb_model_constant(TM_betaStar)),
     forceFactor_(solnOpts.get_turb_model_constant(TM_forFac)),
+    cMu_(solnOpts.get_turb_model_constant(TM_v2cMu)),
     nDim_(bulk.mesh_meta_data().spatial_dimension())
 {
   const auto& meta = bulk.mesh_meta_data();
@@ -190,8 +191,7 @@ MomentumSSTTAMSForcingNodeKernel::execute(
                                  stk::math::sin(yarg) * stk::math::cos(zarg);
 
   // Now we calculate the scaling of the initial field
-  // FIXME: Pass the 0.22 as another turbulence constant (V2F_Cmu)
-  const NodeKernelTraits::DblType v2 = tvisc * betaStar_ * sdr / (0.22 * rho);
+  const NodeKernelTraits::DblType v2 = tvisc * betaStar_ * sdr / (cMu_ * rho);
   const NodeKernelTraits::DblType F_target =
     FORCING_FACTOR * stk::math::sqrt(alpha * v2) / T_alpha;
 

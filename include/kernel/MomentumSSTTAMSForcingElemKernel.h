@@ -76,6 +76,7 @@ private:
 
   // master element
   const double betaStar_;
+  const double cMu_;
   const double forceFactor_;
 
   MasterElement* meSCV_{nullptr};

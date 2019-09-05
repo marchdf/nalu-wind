@@ -74,6 +74,7 @@ private:
 
   const double betaStar_;
   const double forceFactor_;
+  const double cMu_; 
   const int nDim_;
 
   double pi_;
