@@ -344,26 +344,29 @@ ComputeSSTTAMSAveragesNodeAlgorithm::execute()
       // Scale PM first
       const double v2 = 1.0 / 0.22 * (tvisc[k] / avgRho[k] / avgTime[k]);
       const double PMscale = std::pow(1.5 * alpha[k] * v2, -1.5);
-      if (v2 == 0.0 || avgTime[k] == 0.0)
-        throw std::runtime_error("SSTTAMSParams: v2 or avgTime is 0, will cause NaN");
-      for (int i = 0; i < nDim; ++i)
-        for (int j = 0; j < nDim; ++j)
-          PM[i][j] = PM[i][j] * PMscale;
 
-      // FIXME: PM is not symmetric
-      EigenDecomposition::unsym_matrix_force_sym<double>(PM, Q, D);
+      // Handle case where tke = 0, should only occur at a wall boundary
+      if (tke[k] == 0.0)
+        resAdeq[k] = 1.0;
+      else {
+        for (int i = 0; i < nDim; ++i)
+          for (int j = 0; j < nDim; ++j)
+            PM[i][j] = PM[i][j] * PMscale;
 
-      const double maxPM = std::max(std::abs(D[0][0]),
-                                    std::max(std::abs(D[1][1]), std::abs(D[2][2])));
+        // FIXME: PM is not symmetric
+        EigenDecomposition::unsym_matrix_force_sym<double>(PM, Q, D);
 
-      // Update the instantaneous resAdeq field
-      resAdeq[k] = maxPM;
+        const double maxPM = std::max(std::abs(D[0][0]),
+                                      std::max(std::abs(D[1][1]), std::abs(D[2][2])));
 
-      resAdeq[k] = std::min(resAdeq[k], 30.0);
+        // Update the instantaneous resAdeq field
+        resAdeq[k] = maxPM;
 
-      if (alpha[k] >= 1.0)
-        resAdeq[k] = std::min(resAdeq[k], 1.0);
+        resAdeq[k] = std::min(resAdeq[k], 30.0);
 
+        if (alpha[k] >= 1.0)
+          resAdeq[k] = std::min(resAdeq[k], 1.0);
+      }
       avgResAdeq[k] = weightAvg * avgResAdeq[k] + weightInst * resAdeq[k];
     }
   }
