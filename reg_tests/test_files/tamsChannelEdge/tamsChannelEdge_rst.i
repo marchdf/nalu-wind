@@ -29,10 +29,11 @@ linear_solvers:
 realms:
 
   - name: realm_1
-    mesh: ../../mesh/periodicChannel.g
+    mesh: tamsChannelEdge.e 
     use_edges: yes 
     check_for_missing_bcs: yes
     automatic_decomposition_type: rcb
+    support_inconsistent_multi_state_restart: yes
 
     time_step_control:
      target_courant: 1.0
@@ -48,7 +49,7 @@ realms:
         specific_dissipation_rate: solve_scalar
         pressure: solve_cont
         ndtw: solve_cont
-#        time_averaged_model_split: solve_cont
+        time_averaged_model_split: solve_cont
 
       systems:
         - WallDistance:
@@ -66,10 +67,10 @@ realms:
             max_iterations: 1
             convergence_tolerance: 1e-8
 
-#        - TAMS:
-#            name: myTAMS
-#            max_iterations: 1
-#            convergence_tolerance: 1e-8
+        - TAMS:
+            name: myTAMS
+            max_iterations: 1
+            convergence_tolerance: 1e-8
 
     initial_conditions:
       - constant: ic_1
@@ -77,14 +78,14 @@ realms:
         value:
           pressure: 0
           velocity: [22.0,0.0,0.0]
-          turbulent_ke: 0.05
-          specific_dissipation_rate: 3528.0 
-#          average_velocity: [22.78,0.0,0.0]
-#          average_density: 1.0
-#          average_tke_resolved: 0.0
-#          average_dudx: 0.0
-#          k_ratio: 1.0
-#          avg_res_adequacy_parameter: 1.0 
+          turbulent_ke: 0.0005
+          specific_dissipation_rate: 0.0005
+          average_velocity: [22.78,0.0,0.0]
+          average_density: 1.0
+          average_tke_resolved: 0.0
+          average_dudx: 0.0
+          k_ratio: 1.0
+          avg_res_adequacy_parameter: 1.0 
 
     material_properties:
       target_name: Unspecified-2-HEX
@@ -124,9 +125,8 @@ realms:
 
     solution_options:
       name: myOptions
-#      turbulence_model: sst_tams
-      turbulence_model: sst
-#      reset_TAMS_averages_on_init: true 
+      turbulence_model: sst_tams
+      reset_TAMS_averages_on_init: false 
       projected_timescale_type: momentum_diag_inv
 
       fix_pressure_at_node:
@@ -176,7 +176,7 @@ realms:
 
         - turbulence_model_constants:
             SDRWallFactor: 0.625
-#            forcingFactor: 32.0
+            forcingFactor: 32.0
 
         - source_terms:
             momentum: body_force
@@ -185,17 +185,18 @@ realms:
             momentum: [1.00, 0.0, 0.0]
 
     restart:
-      restart_data_base_name: tamsChannelEdge.rst
-      restart_frequency: 50
+      restart_data_base_name: tamsChannelEdge.rst-s001
+      restart_frequency: 10 
       restart_start: 5
+      restart_time: 100
 
     output:
-      output_data_base_name: tamsChannelEdge.e
-      output_frequency: 20 
+      output_data_base_name: tamsChannelEdge.e-s001
+      output_frequency: 10 
       output_node_set: no
       output_variables:
        - velocity
-#       - average_velocity
+       - average_velocity
        - pressure
        - pressure_force
        - tau_wall
@@ -203,26 +204,26 @@ realms:
        - specific_dissipation_rate
        - minimum_distance_to_wall
        - turbulent_viscosity
-#       - k_ratio
-#       - average_time
-#       - average_mass_flow_rate
-#       - average_tke_resolved
-#       - avg_res_adequacy_parameter
-#       - resolution_adequacy_parameter
-#       - metric_tensor
+       - k_ratio
+       - average_time
+       - average_mass_flow_rate
+       - average_tke_resolved
+       - avg_res_adequacy_parameter
+       - resolution_adequacy_parameter
+       - metric_tensor
        - element_courant
-#       - average_production
-#       - average_dudx
+       - average_production
+       - average_dudx
 
 Time_Integrators:
   - StandardTimeIntegrator:
       name: ti_1
       start_time: 0
       time_step: 2.0e-3
-      termination_step_count: 20 
+      termination_step_count: 20
       time_stepping_type: fixed
       time_step_count: 0
-      second_order_accuracy: yes
+      second_order_accuracy: no
 
       realms:
         - realm_1
