@@ -32,7 +32,6 @@ realms:
     mesh: tamsChannelEdge.e 
     use_edges: yes 
     check_for_missing_bcs: yes
-    automatic_decomposition_type: rcb
     support_inconsistent_multi_state_restart: yes
 
     time_step_control:
