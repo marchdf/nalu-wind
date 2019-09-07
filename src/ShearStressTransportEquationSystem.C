@@ -484,14 +484,14 @@ ShearStressTransportEquationSystem::clip_min_distance_to_wall()
 
          // assemble to nodal quantities
          double *minD = stk::mesh::field_data(*minDistanceToWall_, nodeR );
-
+         
          *minD = std::max(*minD, ypbip);
        }
      }
    }
    stk::mesh::parallel_max(realm_.bulk_data(), {minDistanceToWall_});
    if (realm_.hasPeriodic_) {
-     realm_.periodic_field_update(minDistanceToWall_, 1);
+     realm_.periodic_delta_solution_update(minDistanceToWall_, 1);
    }
 }
 

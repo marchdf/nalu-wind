@@ -48,6 +48,9 @@ MomentumSSTTAMSDiffEdgeKernel::MomentumSSTTAMSDiffEdgeKernel(
   avgVelocityID_ = get_field_ordinal(meta, "average_velocity");
   avgDensityID_ = get_field_ordinal(meta, "average_density");
   avgDudxID_ = get_field_ordinal(meta, "average_dudx");
+
+  const std::string dofName = "velocity";
+  relaxFacU_ = solnOpts.get_relaxation_factor(dofName);
 }
 
 void
@@ -189,36 +192,50 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
   const EdgeKernelTraits::DblType epsilon13Ip = stk::math::pow(betaStar_ * tkeIp * sdrIp, 1.0 / 3.0);
 
   for (int i = 0; i < ndim; ++i) {
+    // Left and right row/col indices
+    const int rowL = i;
+    const int rowR = i + ndim;
 
     // This is the divU term for the average quantities in the model for
     // tau_ij^SGRS Since we are letting SST calculate it's normal mu_t, we
     // need to scale by alpha here
     const EdgeKernelTraits::DblType avgDivUstress =
       2.0 / 3.0 * alphaIp * muIp * avgDivU * av[i] * includeDivU_;
-    smdata.rhs(0 + i) -= avgDivUstress;
-    smdata.rhs(EdgeKernelTraits::NDimMax + i) += avgDivUstress;
+    smdata.rhs(rowL) -= avgDivUstress;
+    smdata.rhs(rowR) += avgDivUstress;
 
     // Hybrid turbulence diffusion term; -(mu^jk*dui/dxk + mu^ik*duj/dxk -
     // 2/3*rho*tke*del_ij)*Aj
+
+    EdgeKernelTraits::DblType lhs_riC_i = 0.0;
     for (int j = 0; j < ndim; ++j) {
 
       // -mut^jk*dui/dxk*A_j; fixed i over j loop; see below..
       EdgeKernelTraits::DblType rhsfacDiff_i = 0.0;
+      EdgeKernelTraits::DblType lhsfacDiff_i = 0.0;
       for (int k = 0; k < ndim; ++k) {
+        lhsfacDiff_i += -avgRhoIp * CM43 * epsilon13Ip * M43[j][k] *
+                        av[k] * av[j] * inv_axdx;
         rhsfacDiff_i += -avgRhoIp * CM43 * epsilon13Ip * M43[j][k] *
                         fluctdUidxj[i][k] * av[j];
       }
+
+      // Accumulate lhs
+      lhs_riC_i += lhsfacDiff_i;
 
       // SGRS (average) term, scaled by alpha
       const EdgeKernelTraits::DblType rhsSGRCfacDiff_i =
         -alphaIp * muIp * avgdUidxj[i][j] * av[j];
 
-      smdata.rhs(0 + i) -= rhsfacDiff_i + rhsSGRCfacDiff_i;
-      smdata.rhs(EdgeKernelTraits::NDimMax + i) += rhsfacDiff_i + rhsSGRCfacDiff_i;
+      smdata.rhs(rowL) -= rhsfacDiff_i + rhsSGRCfacDiff_i;
+      smdata.rhs(rowR) += rhsfacDiff_i + rhsSGRCfacDiff_i;
 
       // -mut^ik*duj/dxk*A_j
       EdgeKernelTraits::DblType rhsfacDiff_j = 0.0;
+      EdgeKernelTraits::DblType lhsfacDiff_j = 0.0;
       for (int k = 0; k < ndim; ++k) {
+        lhsfacDiff_j += -avgRhoIp * CM43 * epsilon13Ip * M43[i][k] *
+                        av[k] * av[j] * inv_axdx;
         rhsfacDiff_j += -avgRhoIp * CM43 * epsilon13Ip * M43[i][k] *
                         fluctdUidxj[j][k] * av[j];
       }
@@ -227,9 +244,22 @@ MomentumSSTTAMSDiffEdgeKernel::execute(
       const EdgeKernelTraits::DblType rhsSGRCfacDiff_j =
         -alphaIp * muIp * avgdUidxj[j][i] * av[j];
 
-      smdata.rhs(0 + i) -= rhsfacDiff_j + rhsSGRCfacDiff_j;
-      smdata.rhs(EdgeKernelTraits::NDimMax + i) += rhsfacDiff_j + rhsSGRCfacDiff_j;
+      smdata.rhs(rowL) -= rhsfacDiff_j + rhsSGRCfacDiff_j;
+      smdata.rhs(rowR) += rhsfacDiff_j + rhsSGRCfacDiff_j;
+
+      const int colL = j;
+      const int colR = j + ndim;
+
+      smdata.lhs(rowL, colL) -= lhsfacDiff_j / relaxFacU_;
+      smdata.lhs(rowL, colR) += lhsfacDiff_j;
+      smdata.lhs(rowR, colL) += lhsfacDiff_j;
+      smdata.lhs(rowR, colR) -= lhsfacDiff_j / relaxFacU_;
     }
+
+    smdata.lhs(rowL, rowL) -= lhs_riC_i / relaxFacU_;
+    smdata.lhs(rowL, rowR) += lhs_riC_i;
+    smdata.lhs(rowR, rowL) += lhs_riC_i;
+    smdata.lhs(rowR, rowR) -= lhs_riC_i / relaxFacU_;
   }
 }
 

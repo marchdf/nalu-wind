@@ -76,6 +76,8 @@ private:
   const double CMdeg_;
 
   const int nDim_;
+
+  double relaxFacU_{1.0};
 };
 
 } // namespace nalu
