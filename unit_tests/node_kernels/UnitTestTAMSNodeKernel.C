@@ -62,7 +62,7 @@ namespace forcing_tams {
 static constexpr double rhs[24] = {
   0, 0, 0, 0, 0, 0, 0, 0,
   0, 0, 0, 0, 0, 0, 0, 0,
-  0, 0, 0, 0, 0, 0, -0.010768338653400215, 0
+  0, 0, 0, 0, 0, 0, -0.017225957747838128, 0
 };
 } // forcing_tams
 } // hex8_golds
