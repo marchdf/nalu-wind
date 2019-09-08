@@ -78,7 +78,7 @@ realms:
           pressure: 0
           velocity: [22.0,0.0,0.0]
           turbulent_ke: 0.0005
-          specific_dissipation_rate: 0.0005
+          specific_dissipation_rate: 3528.0 
           average_velocity: [22.78,0.0,0.0]
           average_density: 1.0
           average_tke_resolved: 0.0
