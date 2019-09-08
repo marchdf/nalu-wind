@@ -185,13 +185,13 @@ realms:
 
     restart:
       restart_data_base_name: tamsChannelEdge.rst-s001
-      restart_frequency: 10 
+      restart_frequency: 10
       restart_start: 5
       restart_time: 100
 
     output:
       output_data_base_name: tamsChannelEdge.e-s001
-      output_frequency: 10 
+      output_frequency: 10
       output_node_set: no
       output_variables:
        - velocity
@@ -222,7 +222,7 @@ Time_Integrators:
       termination_step_count: 20
       time_stepping_type: fixed
       time_step_count: 0
-      second_order_accuracy: no
+      second_order_accuracy: yes
 
       realms:
         - realm_1

@@ -221,7 +221,7 @@ Time_Integrators:
       termination_step_count: 10
       time_stepping_type: fixed
       time_step_count: 0
-      second_order_accuracy: no
+      second_order_accuracy: yes
 
       realms:
         - realm_1

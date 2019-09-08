@@ -32,7 +32,7 @@ realms:
     mesh: tamsChannelElem.rst 
     use_edges: no
     check_for_missing_bcs: yes
-    automatic_decomposition_type: rcb
+    support_inconsistent_multi_state_restart: yes
 
     time_step_control:
      target_courant: 1.0
@@ -40,7 +40,7 @@ realms:
 
     equation_systems:
       name: theEqSys
-      max_iterations: 4 
+      max_iterations: 4
 
       solver_system_specification:
         velocity: solve_scalar
@@ -61,7 +61,7 @@ realms:
             max_iterations: 1
             convergence_tolerance: 1e-8
 
-        - ShearStressTransport: 
+        - ShearStressTransport:
             name: mySST
             max_iterations: 1
             convergence_tolerance: 1e-8
@@ -84,7 +84,7 @@ realms:
           average_tke_resolved: 0.0
           average_dudx: 0.0
           k_ratio: 1.0
-          avg_res_adequacy_parameter: 1.0
+          avg_res_adequacy_parameter: 1.0 
 
     material_properties:
       target_name: Unspecified-2-HEX
@@ -176,33 +176,33 @@ realms:
             specific_dissipation_rate: yes
 
         - element_source_terms:
-            momentum: [momentum_time_derivative, advection_diffusion, tams_sst, tams_sst_forcing, body_force]
+            momentum: [momentum_time_derivative, advection_diffusion, sst_tams, sst_tams_forcing, body_force]
             continuity: [advection]
-            turbulent_ke: [turbulent_ke_time_derivative, TAMS_advection_diffusion, tams_sst]
-            specific_dissipation_rate: [specific_dissipation_rate_time_derivative, TAMS_advection_diffusion, tams_sst]
+            turbulent_ke: [turbulent_ke_time_derivative, TAMS_advection_diffusion, sst_tams]
+            specific_dissipation_rate: [specific_dissipation_rate_time_derivative, TAMS_advection_diffusion, sst_tams]
 
         - user_constants:
             body_force: [1.0,0.0,0.0]
 
         - relaxation_factor:
-            velocity: 1.0
+            velocity: 1.0 
             pressure: 1.0
             turbulent_ke: 1.0
             specific_dissipation_rate: 1.0
 
         - turbulence_model_constants:
-            SDRWallFactor: 0.625 
+            SDRWallFactor: 0.625
             forcingFactor: 32.0
 
     restart:
       restart_data_base_name: tamsChannelElem.rst-s001
-      restart_frequency: 50
+      restart_frequency: 10
       restart_start: 5 
       restart_time: 100
 
     output:
       output_data_base_name: tamsChannelElem.e-s001
-      output_frequency: 20
+      output_frequency: 10
       output_node_set: no
       output_variables:
        - velocity
@@ -221,8 +221,8 @@ realms:
        - average_tke_resolved
        - avg_res_adequacy_parameter
        - resolution_adequacy_parameter
-       - element_courant
        - metric_tensor
+       - element_courant
        - average_production
        - average_dudx
 
@@ -231,7 +231,7 @@ Time_Integrators:
       name: ti_1
       start_time: 0
       time_step: 2.0e-3
-      termination_step_count: 200
+      termination_step_count: 20
       time_stepping_type: fixed
       time_step_count: 0
       second_order_accuracy: yes
