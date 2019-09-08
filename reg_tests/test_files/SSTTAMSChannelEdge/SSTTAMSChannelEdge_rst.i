@@ -26,18 +26,6 @@ linear_solvers:
     bamg_interp_type: 6
     bamg_cycle_type: 1
 
-transfers:
-
-# io initialcond to ....
-
-  - name: xfer_ioIC_HEX
-    type: geometric
-    realm_pair: [ioRealmIC, realm_1]
-    mesh_part_pair: [Unspecified-2-HEX, Unspecified-2-HEX]
-    objective: initialization
-    transfer_variables:
-      - [velocity, average_velocity]
-
 realms:
 
   - name: realm_1
@@ -226,31 +214,6 @@ realms:
        - average_production
        - average_dudx
 
-  - name: ioRealmIC
-    mesh: SSTTAMSChannelEdge.rst
-    type: initialization
-
-    field_registration:
-      specifications:
-        - field_name: velocity
-          target_name: [Unspecified-2-HEX]
-          field_size: 3
-          field_type: node_rank
-        - field_name: pressure
-          target_name: [Unspecified-2-HEX]
-          field_size: 1
-          field_type: node_rank
-
-    solution_options:
-      name: myOptions
-      input_variables_interpolate_in_time: no
-      input_variables_from_file_restoration_time: 100000.0
-
-      options:
-        - input_variables_from_file:
-            velocity: velocity
-            pressure: pressure
-
 Time_Integrators:
   - StandardTimeIntegrator:
       name: ti_1
@@ -263,4 +226,3 @@ Time_Integrators:
 
       realms:
         - realm_1
-        - ioRealmIC

@@ -403,18 +403,25 @@ TAMSEquationSystem::initial_work()
 
   stk::mesh::MetaData& meta_data = realm_.meta_data();
 
-  // Initialialize avg_dudx and avg_Prod
+  // Initialize average_velocity, avg_dudx and avg_Prod
   // We don't want to do this on restart where TAMS fields are present
   if (resetAverages_) {
     const int nDim = meta_data.spatial_dimension();
 
-    GenericFieldType* dudx_ =
-      meta_data.get_field<GenericFieldType>(stk::topology::NODE_RANK, "dudx");
+    // Copy velocity to average velocity
+    VectorFieldType &avgU = avgVelocity_->field_of_state(stk::mesh::StateNP1);
+    const auto& U = *meta_data.get_field<VectorFieldType>(stk::topology::NODE_RANK, "velocity");
+    field_copy(realm_.meta_data(), realm_.bulk_data(), U, avgU, realm_.get_activate_aura());
+
+    // Copy dudx to average dudx
+    GenericFieldType &avgDudx = avgDudx_->field_of_state(stk::mesh::StateNP1);
+    const auto& dudx = *meta_data.get_field<GenericFieldType>(stk::topology::NODE_RANK, "dudx");
+    field_copy(realm_.meta_data(), realm_.bulk_data(), dudx, avgDudx, realm_.get_activate_aura());
+
     ScalarFieldType* turbKinEne_ = meta_data.get_field<ScalarFieldType>(
       stk::topology::NODE_RANK, "turbulent_ke");
     ScalarFieldType* tvisc_ = meta_data.get_field<ScalarFieldType>(
       stk::topology::NODE_RANK, "turbulent_viscosity");
-
     ScalarFieldType& tkeNp1 = turbKinEne_->field_of_state(stk::mesh::StateNP1);
 
     // define some common selectors
@@ -435,16 +442,8 @@ TAMSEquationSystem::initial_work()
       double* rho = stk::mesh::field_data(*avgDensity_, b);
 
       for (stk::mesh::Bucket::size_type k = 0; k < length; ++k) {
-        // get velocity field data
-        const double* dudx = stk::mesh::field_data(*dudx_, b[k]);
-        double* avgDudx = stk::mesh::field_data(*avgDudx_, b[k]);
-
-        for (int i = 0; i < nDim; ++i)
-          for (int j = 0; j < nDim; ++j)
-            avgDudx[i * nDim + j] = dudx[i * nDim + j];
-
-
         // Initialize average production to mean production
+        const double* avgDudx = stk::mesh::field_data(*avgDudx_, b[k]);
         double* tij = new double[nDim * nDim];
         for (int i = 0; i < nDim; ++i) {
           for (int j = 0; j < nDim; ++j) {
