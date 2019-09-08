@@ -29,7 +29,7 @@ linear_solvers:
 realms:
 
   - name: realm_1
-    mesh: tamsChannelEdge.e 
+    mesh: tamsChannelEdge.rst
     use_edges: yes 
     check_for_missing_bcs: yes
     support_inconsistent_multi_state_restart: yes

@@ -186,7 +186,7 @@ realms:
     restart:
       restart_data_base_name: tamsChannelEdge.rst
       restart_frequency: 10
-      restart_start: 5
+      restart_start: 0
 
     output:
       output_data_base_name: tamsChannelEdge.e
