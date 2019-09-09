@@ -18,11 +18,9 @@ class Realm;
 class ComputeMetricTensorNodeAlgorithm : public Algorithm {
 public:
   ComputeMetricTensorNodeAlgorithm(Realm &realm, stk::mesh::Part *part);
-  virtual ~ComputeMetricTensorNodeAlgorithm();
+  virtual ~ComputeMetricTensorNodeAlgorithm() = default;
 
   virtual void execute();
-
-  std::ofstream tmpFile;
 
   VectorFieldType *coordinates_{nullptr};
   GenericFieldType *nodalMij_{nullptr};
