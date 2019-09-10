@@ -147,6 +147,9 @@
 #include "node_kernels/ContinuityMassBDFNodeKernel.h"
 
 // ngp
+#include "ngp_algorithms/NodalGradEdgeAlg.h"
+#include "ngp_algorithms/NodalGradElemAlg.h"
+#include "ngp_algorithms/NodalGradBndryElemAlg.h"
 #include "ngp_utils/NgpLoopUtils.h"
 #include "ngp_utils/NgpFieldBLAS.h"
 
@@ -846,7 +849,7 @@ LowMachEquationSystem::post_adapt_work()
     const bool processU = false;
     if ( processU ) {
       project_nodal_velocity();
-      momentumEqSys_->assembleNodalGradAlgDriver_->execute();
+      momentumEqSys_->nodalGradAlgDriver_.execute();
     }
     
     // compute wall function parameters (bip values)
@@ -954,7 +957,7 @@ MomentumEquationSystem::MomentumEquationSystem(
     visc_(NULL),
     tvisc_(NULL),
     evisc_(NULL),
-    assembleNodalGradAlgDriver_(new AssembleNodalGradUAlgorithmDriver(realm_, "dudx")),
+    nodalGradAlgDriver_(realm_, "dudx"),
     diffFluxCoeffAlgDriver_(new AlgorithmDriver(realm_)),
     tviscAlgDriver_(new AlgorithmDriver(realm_)),
     cflReyAlgDriver_(new AlgorithmDriver(realm_)),
@@ -987,7 +990,6 @@ MomentumEquationSystem::MomentumEquationSystem(
 //--------------------------------------------------------------------------
 MomentumEquationSystem::~MomentumEquationSystem()
 {
-  delete assembleNodalGradAlgDriver_;
   delete diffFluxCoeffAlgDriver_;
   delete tviscAlgDriver_;
   delete cflReyAlgDriver_;
@@ -1155,21 +1157,13 @@ MomentumEquationSystem::register_interior_algorithm(
 
   // non-solver; contribution to Gjui; allow for element-based shifted
   if ( !managePNG_ ) {
-    std::map<AlgorithmType, Algorithm *>::iterator itgu
-      = assembleNodalGradAlgDriver_->algMap_.find(algType);
-    if ( itgu == assembleNodalGradAlgDriver_->algMap_.end() ) {
-      Algorithm *theAlg = NULL;
-      if ( edgeNodalGradient_ && realm_.realmUsesEdges_ ) {
-        theAlg = new AssembleNodalGradUEdgeAlgorithm(realm_, part, &velocityNp1, &dudxNone);
-      }
-      else {
-        theAlg = new AssembleNodalGradUElemAlgorithm(realm_, part, &velocityNp1, &dudxNone, edgeNodalGradient_);
-      }
-      assembleNodalGradAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      itgu->second->partVec_.push_back(part);
-    }
+    if (edgeNodalGradient_ && realm_.realmUsesEdges_)
+      nodalGradAlgDriver_.register_edge_algorithm<VectorNodalGradEdgeAlg>(
+        algType, part, "momentum_nodal_grad", &velocityNp1, &dudxNone);
+    else
+      nodalGradAlgDriver_.register_legacy_algorithm<AssembleNodalGradUElemAlgorithm>(
+        algType, part, "momentum_nodal_grad", &velocityNp1, &dudxNone,
+        edgeNodalGradient_);
   }
 
   // solver; interior contribution (advection + diffusion) [possible CMM time]
@@ -1671,16 +1665,10 @@ MomentumEquationSystem::register_inflow_bc(
   
   // non-solver; contribution to Gjui; allow for element-based shifted
   if ( !managePNG_ ) {
-    std::map<AlgorithmType, Algorithm *>::iterator it
-      = assembleNodalGradAlgDriver_->algMap_.find(algType);
-    if ( it == assembleNodalGradAlgDriver_->algMap_.end() ) {
-      Algorithm *theAlg
-        = new AssembleNodalGradUBoundaryAlgorithm(realm_, part, theBcField, &dudxNone, edgeNodalGradient_);
-      assembleNodalGradAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      it->second->partVec_.push_back(part);
-    }
+    nodalGradAlgDriver_.register_face_algorithm<
+      VectorNodalGradBndryElemAlg, AssembleNodalGradUBoundaryAlgorithm>(
+        algType, part, "momentum_nodal_grad", theBcField, &dudxNone,
+        edgeNodalGradient_);
   }
 
   // Dirichlet bc
@@ -1742,16 +1730,10 @@ MomentumEquationSystem::register_open_bc(
 
   // non-solver; contribution to Gjui; allow for element-based shifted
   if ( !managePNG_ ) {
-    std::map<AlgorithmType, Algorithm *>::iterator it
-      = assembleNodalGradAlgDriver_->algMap_.find(algType);
-    if ( it == assembleNodalGradAlgDriver_->algMap_.end() ) {
-      Algorithm *theAlg
-        = new AssembleNodalGradUBoundaryAlgorithm(realm_, part, &velocityNp1, &dudxNone, edgeNodalGradient_);
-      assembleNodalGradAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      it->second->partVec_.push_back(part);
-    }
+    nodalGradAlgDriver_.register_face_algorithm<
+      VectorNodalGradBndryElemAlg, AssembleNodalGradUBoundaryAlgorithm>(
+      algType, part, "momentum_nodal_grad", &velocityNp1, &dudxNone,
+      edgeNodalGradient_);
   }
 
   if ( realm_.solutionOptions_->useConsolidatedBcSolverAlg_ ) {      
@@ -1920,16 +1902,10 @@ MomentumEquationSystem::register_wall_bc(
   // non-solver; contribution to Gjui; allow for element-based shifted
   if ( !managePNG_ ) {
     const AlgorithmType algTypePNG = anyWallFunctionActivated ? WALL_FCN : WALL;
-    std::map<AlgorithmType, Algorithm *>::iterator it
-      = assembleNodalGradAlgDriver_->algMap_.find(algTypePNG);
-    if ( it == assembleNodalGradAlgDriver_->algMap_.end() ) {
-      Algorithm *theAlg
-        = new AssembleNodalGradUBoundaryAlgorithm(realm_, part, theBcField, &dudxNone, edgeNodalGradient_);
-      assembleNodalGradAlgDriver_->algMap_[algTypePNG] = theAlg;
-    }
-    else {
-      it->second->partVec_.push_back(part);
-    }
+    nodalGradAlgDriver_.register_face_algorithm<
+      VectorNodalGradBndryElemAlg, AssembleNodalGradUBoundaryAlgorithm>(
+      algTypePNG, part, "momentum_nodal_grad", theBcField, &dudxNone,
+      edgeNodalGradient_);
   }
 
   // Dirichlet or wall function bc
@@ -2130,16 +2106,10 @@ MomentumEquationSystem::register_symmetry_bc(
 
   // non-solver; contribution to Gjui; allow for element-based shifted
   if ( !managePNG_ ) {
-    std::map<AlgorithmType, Algorithm *>::iterator it
-      = assembleNodalGradAlgDriver_->algMap_.find(algType);
-    if ( it == assembleNodalGradAlgDriver_->algMap_.end() ) {
-      Algorithm *theAlg
-        = new AssembleNodalGradUBoundaryAlgorithm(realm_, part, &velocityNp1, &dudxNone, edgeNodalGradient_);
-      assembleNodalGradAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      it->second->partVec_.push_back(part);
-    }
+    nodalGradAlgDriver_.register_face_algorithm<
+      VectorNodalGradBndryElemAlg, AssembleNodalGradUBoundaryAlgorithm>(
+      algType, part, "momentum_nodal_grad", &velocityNp1, &dudxNone,
+      edgeNodalGradient_);
   }
 
   if (!realm_.solutionOptions_->useConsolidatedBcSolverAlg_
@@ -2227,16 +2197,10 @@ MomentumEquationSystem::register_abltop_bc(
 
   // non-solver; contribution to Gjui; allow for element-based shifted
   if ( !managePNG_ ) {
-    std::map<AlgorithmType, Algorithm *>::iterator it
-      = assembleNodalGradAlgDriver_->algMap_.find(algType);
-    if ( it == assembleNodalGradAlgDriver_->algMap_.end() ) {
-      Algorithm *theAlg
-        = new AssembleNodalGradUBoundaryAlgorithm(realm_, part, &velocityNp1, &dudxNone, edgeNodalGradient_);
-      assembleNodalGradAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      it->second->partVec_.push_back(part);
-    }
+    nodalGradAlgDriver_.register_face_algorithm<
+      VectorNodalGradBndryElemAlg, AssembleNodalGradUBoundaryAlgorithm>(
+      algType, part, "momentum_nodal_grad", &velocityNp1, &dudxNone,
+      edgeNodalGradient_);
   }
 
   if (!realm_.solutionOptions_->useConsolidatedBcSolverAlg_) {
@@ -2326,32 +2290,18 @@ MomentumEquationSystem::register_non_conformal_bc(
   // non-solver; contribution to Gjui; DG algorithm decides on locations for integration points
   if ( !managePNG_ ) {
     if ( edgeNodalGradient_ ) {
-      std::map<AlgorithmType, Algorithm *>::iterator it
-        = assembleNodalGradAlgDriver_->algMap_.find(algType);
-      if ( it == assembleNodalGradAlgDriver_->algMap_.end() ) {
-        Algorithm *theAlg
-          = new AssembleNodalGradUBoundaryAlgorithm(realm_, part, &velocityNp1, &dudxNone, edgeNodalGradient_);
-        assembleNodalGradAlgDriver_->algMap_[algType] = theAlg;
-      }
-      else {
-        it->second->partVec_.push_back(part);
-      }
+      nodalGradAlgDriver_.register_face_algorithm<
+        VectorNodalGradBndryElemAlg, AssembleNodalGradUBoundaryAlgorithm>(
+        algType, part, "momentum_nodal_grad", &velocityNp1, &dudxNone,
+        edgeNodalGradient_);
     }
-    else { 
-      // proceed with DG
-      std::map<AlgorithmType, Algorithm *>::iterator it
-        = assembleNodalGradAlgDriver_->algMap_.find(algType);
-      if ( it == assembleNodalGradAlgDriver_->algMap_.end() ) {
-        AssembleNodalGradUNonConformalAlgorithm *theAlg 
-          = new AssembleNodalGradUNonConformalAlgorithm(realm_, part, &velocityNp1, &dudxNone);
-        assembleNodalGradAlgDriver_->algMap_[algType] = theAlg;
-      }
-      else {
-        it->second->partVec_.push_back(part);
-      }
+    else {
+      nodalGradAlgDriver_
+        .register_legacy_algorithm<AssembleNodalGradUNonConformalAlgorithm>(
+          algType, part, "momentum_nodal_grad", &velocityNp1, &dudxNone);
     }
   }
-  
+
   // solver; lhs; same for edge and element-based scheme
   std::map<AlgorithmType, SolverAlgorithm *>::iterator itsi =
     solverAlgDriver_->solverAlgMap_.find(algType);
@@ -2495,7 +2445,7 @@ MomentumEquationSystem::compute_projected_nodal_gradient()
 {
   if ( !managePNG_ ) {
     const double timeA = -NaluEnv::self().nalu_time();
-    assembleNodalGradAlgDriver_->execute();
+    nodalGradAlgDriver_.execute();
     timerMisc_ += (NaluEnv::self().nalu_time() + timeA);
   }
   else {
@@ -2734,7 +2684,7 @@ ContinuityEquationSystem::ContinuityEquationSystem(
     massFlowRate_(NULL),
     coordinates_(NULL),
     pTmp_(NULL),
-    assembleNodalGradPAlgDriver_(new AssembleNodalGradPAlgorithmDriver(realm_)),
+    nodalGradAlgDriver_(realm_, "dpdx"),
     computeMdotAlgDriver_(new ComputeMdotAlgorithmDriver(realm_)),
     projectedNodalGradEqs_(NULL)
 {
@@ -2771,7 +2721,6 @@ ContinuityEquationSystem::ContinuityEquationSystem(
 //--------------------------------------------------------------------------
 ContinuityEquationSystem::~ContinuityEquationSystem()
 {
-  delete assembleNodalGradPAlgDriver_;
   delete computeMdotAlgDriver_;
 }
 
@@ -2843,21 +2792,13 @@ ContinuityEquationSystem::register_interior_algorithm(
 
   // non-solver; contribution to Gjp; allow for element-based shifted
   if ( !managePNG_ ) {
-    std::map<AlgorithmType, Algorithm *>::iterator it
-      = assembleNodalGradPAlgDriver_->algMap_.find(algType);
-    if ( it == assembleNodalGradPAlgDriver_->algMap_.end() ) {
-      Algorithm *theAlg = NULL;
-      if ( !elementContinuityEqs_ && edgeNodalGradient_ ) {
-        theAlg = new AssembleNodalGradEdgeAlgorithm(realm_, part, &pressureNone, &dpdxNone);
-      }
-      else {
-        theAlg = new AssembleNodalGradElemAlgorithm(realm_, part, &pressureNone, &dpdxNone, edgeNodalGradient_);
-      }
-      assembleNodalGradPAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      it->second->partVec_.push_back(part);
-    }
+    if (!elementContinuityEqs_ && edgeNodalGradient_)
+      nodalGradAlgDriver_.register_edge_algorithm<ScalarNodalGradEdgeAlg>(
+        algType, part, "continuity_nodal_grad", &pressureNone, &dpdxNone);
+    else
+      nodalGradAlgDriver_.register_legacy_algorithm<AssembleNodalGradElemAlgorithm>(
+        algType, part, "continuity_nodal_grad",
+        &pressureNone, &dpdxNone, edgeNodalGradient_);
   }
 
   if ( !elementContinuityEqs_ ) {
@@ -3162,16 +3103,9 @@ ContinuityEquationSystem::register_inflow_bc(
 
   // non-solver; contribution to Gjp; allow for element-based shifted
   if ( !managePNG_ ) {
-    std::map<AlgorithmType, Algorithm *>::iterator it
-      = assembleNodalGradPAlgDriver_->algMap_.find(algType);
-    if ( it == assembleNodalGradPAlgDriver_->algMap_.end() ) {
-      Algorithm *theAlg 
-        = new AssembleNodalGradBoundaryAlgorithm(realm_, part, &pressureNone, &dpdxNone, edgeNodalGradient_);
-      assembleNodalGradPAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      it->second->partVec_.push_back(part);
-    }
+    nodalGradAlgDriver_.register_face_algorithm<ScalarNodalGradBndryElemAlg, AssembleNodalGradBoundaryAlgorithm>(
+      algType, part, "continuity_nodal_grad",
+      &pressureNone, &dpdxNone, edgeNodalGradient_);
   }
 
   // check to see if we are using shifted as inflow is shared
@@ -3247,17 +3181,10 @@ ContinuityEquationSystem::register_open_bc(
 
   // non-solver; contribution to Gjp; allow for element-based shifted
   if ( !managePNG_ ) {
-    std::map<AlgorithmType, Algorithm *>::iterator it
-      = assembleNodalGradPAlgDriver_->algMap_.find(algType);
-    if ( it == assembleNodalGradPAlgDriver_->algMap_.end() ) {
-      Algorithm *theAlg 
-        = new AssembleNodalGradPOpenBoundaryAlgorithm(realm_, part, edgeNodalGradient_);
-      assembleNodalGradPAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      it->second->partVec_.push_back(part);
-    }
-}
+    nodalGradAlgDriver_.register_legacy_algorithm<
+      AssembleNodalGradPOpenBoundaryAlgorithm>(
+      algType, part, "continuity_nodal_grad", edgeNodalGradient_);
+  }
 
   // mdot at open and lhs
   if ( !elementContinuityEqs_ ) {
@@ -3368,16 +3295,9 @@ ContinuityEquationSystem::register_wall_bc(
 
   // non-solver; contribution to Gjp; allow for element-based shifted
   if ( !managePNG_ ) {
-    std::map<AlgorithmType, Algorithm *>::iterator it
-      = assembleNodalGradPAlgDriver_->algMap_.find(algType);
-    if ( it == assembleNodalGradPAlgDriver_->algMap_.end() ) {
-      Algorithm *theAlg 
-        = new AssembleNodalGradBoundaryAlgorithm(realm_, part, &pressureNone, &dpdxNone, edgeNodalGradient_);
-      assembleNodalGradPAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      it->second->partVec_.push_back(part);
-    }
+    nodalGradAlgDriver_.register_face_algorithm<ScalarNodalGradBndryElemAlg, AssembleNodalGradBoundaryAlgorithm>(
+      algType, part, "continuity_nodal_grad",
+      &pressureNone, &dpdxNone, edgeNodalGradient_);
   }
 }
 
@@ -3399,15 +3319,9 @@ ContinuityEquationSystem::register_symmetry_bc(
 
   // non-solver; contribution to Gjp; allow for element-based shifted
   if ( !managePNG_ ) {
-    std::map<AlgorithmType, Algorithm *>::iterator it = assembleNodalGradPAlgDriver_->algMap_.find(algType);
-    if ( it == assembleNodalGradPAlgDriver_->algMap_.end() ) {
-      Algorithm *theAlg 
-        = new AssembleNodalGradBoundaryAlgorithm(realm_, part, &pressureNone, &dpdxNone, edgeNodalGradient_);
-      assembleNodalGradPAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      it->second->partVec_.push_back(part);
-    }
+    nodalGradAlgDriver_.register_face_algorithm<ScalarNodalGradBndryElemAlg, AssembleNodalGradBoundaryAlgorithm>(
+      algType, part, "continuity_nodal_grad",
+      &pressureNone, &dpdxNone, edgeNodalGradient_);
   }
 }
 
@@ -3519,16 +3433,9 @@ ContinuityEquationSystem::register_abltop_bc(
 
   // non-solver; contribution to Gjp; allow for element-based shifted
   if ( !managePNG_ ) {
-    std::map<AlgorithmType, Algorithm *>::iterator it
-      = assembleNodalGradPAlgDriver_->algMap_.find(algType);
-    if ( it == assembleNodalGradPAlgDriver_->algMap_.end() ) {
-      Algorithm *theAlg 
-        = new AssembleNodalGradBoundaryAlgorithm(realm_, part, &pressureNone, &dpdxNone, edgeNodalGradient_);
-      assembleNodalGradPAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      it->second->partVec_.push_back(part);
-    }
+    nodalGradAlgDriver_.register_face_algorithm<ScalarNodalGradBndryElemAlg, AssembleNodalGradBoundaryAlgorithm>(
+      algType, part, "continuity_nodal_grad",
+      &pressureNone, &dpdxNone, edgeNodalGradient_);
   }
 
   // check to see if we are using shifted as inflow is shared
@@ -3610,29 +3517,15 @@ ContinuityEquationSystem::register_non_conformal_bc(
   // non-solver; contribution to Gjp; DG algorithm decides on locations for integration points
   if ( !managePNG_ ) {
     if ( edgeNodalGradient_ ) {    
-      std::map<AlgorithmType, Algorithm *>::iterator it
-        = assembleNodalGradPAlgDriver_->algMap_.find(algType);
-      if ( it == assembleNodalGradPAlgDriver_->algMap_.end() ) {
-        Algorithm *theAlg 
-          = new AssembleNodalGradBoundaryAlgorithm(realm_, part, pressure_, dpdx_, edgeNodalGradient_);
-        assembleNodalGradPAlgDriver_->algMap_[algType] = theAlg;
-      }
-      else {
-        it->second->partVec_.push_back(part);
-      }
+      nodalGradAlgDriver_.register_face_algorithm<ScalarNodalGradBndryElemAlg, AssembleNodalGradBoundaryAlgorithm>(
+        algType, part, "continuity_nodal_grad",
+        pressure_, dpdx_, edgeNodalGradient_);
     }
     else {
       // proceed with DG
-      std::map<AlgorithmType, Algorithm *>::iterator it
-        = assembleNodalGradPAlgDriver_->algMap_.find(algType);
-      if ( it == assembleNodalGradPAlgDriver_->algMap_.end() ) {
-        AssembleNodalGradNonConformalAlgorithm *theAlg 
-          = new AssembleNodalGradNonConformalAlgorithm(realm_, part, pressure_, dpdx_);
-        assembleNodalGradPAlgDriver_->algMap_[algType] = theAlg;
-      }
-      else {
-        it->second->partVec_.push_back(part);
-      }
+      nodalGradAlgDriver_
+        .register_legacy_algorithm<AssembleNodalGradNonConformalAlgorithm>(
+          algType, part, "continuity_nodal_grad", pressure_, dpdx_);
     }
   }
 
@@ -3826,7 +3719,7 @@ ContinuityEquationSystem::compute_projected_nodal_gradient()
 {
   if ( !managePNG_ ) {
     const double timeA = -NaluEnv::self().nalu_time();
-    assembleNodalGradPAlgDriver_->execute();
+    nodalGradAlgDriver_.execute();
     timerMisc_ += (NaluEnv::self().nalu_time() + timeA);
   }
   else {
