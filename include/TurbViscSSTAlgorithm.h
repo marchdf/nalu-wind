@@ -24,7 +24,8 @@ public:
   
   TurbViscSSTAlgorithm(
     Realm &realm,
-    stk::mesh::Part *part);
+    stk::mesh::Part *part,
+    const bool = false);
   virtual ~TurbViscSSTAlgorithm() {}
   virtual void execute();
 

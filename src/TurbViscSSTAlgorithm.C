@@ -32,7 +32,8 @@ namespace nalu{
 //--------------------------------------------------------------------------
 TurbViscSSTAlgorithm::TurbViscSSTAlgorithm(
   Realm &realm,
-  stk::mesh::Part *part)
+  stk::mesh::Part *part,
+  const bool useAverages)
   : Algorithm(realm, part),
     aOne_(realm.get_turb_model_constant(TM_aOne)),
     betaStar_(realm.get_turb_model_constant(TM_betaStar)),
@@ -46,12 +47,18 @@ TurbViscSSTAlgorithm::TurbViscSSTAlgorithm(
 {
   // 2003 variant; basically, sijMag replaces vorticityMag
   stk::mesh::MetaData & meta_data = realm_.meta_data();
-  density_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "density");
   viscosity_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "viscosity");
   tke_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "turbulent_ke");
   sdr_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "specific_dissipation_rate");
   minDistance_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "minimum_distance_to_wall");
-  dudx_ = meta_data.get_field<GenericFieldType>(stk::topology::NODE_RANK, "dudx");
+  if (useAverages){
+    density_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "average_density");
+    dudx_ = meta_data.get_field<GenericFieldType>(stk::topology::NODE_RANK, "average_dudx");
+  }
+  else{
+    density_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "density");
+    dudx_ = meta_data.get_field<GenericFieldType>(stk::topology::NODE_RANK, "dudx");
+  }
   tvisc_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "turbulent_viscosity");
 }
 

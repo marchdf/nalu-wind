@@ -48,6 +48,23 @@ TEST_F(TestTurbulenceAlgorithm, testturbviscsstalgorithm)
   EXPECT_NEAR(norm, gold_norm, tol);
 }
 
+TEST_F(TestTurbulenceAlgorithm, testturbviscssttamsalgorithm)
+{
+  sierra::nalu::Realm& realm = this->create_realm();
+
+  fill_mesh_and_init_fields();
+
+  // Execute
+  sierra::nalu::TurbViscSSTAlgorithm alg(realm, meshPart_, true);
+  alg.execute();
+
+  // Perform tests
+  const double tol = 1e-14;
+  double norm = field_norm(*tvisc_);
+  const double gold_norm = 1.0567171916754541;
+  EXPECT_NEAR(norm, gold_norm, tol);
+}
+
 TEST_F(TestTurbulenceAlgorithm, effectivesstdifffluxcoeffalgorithm)
 {
   sierra::nalu::Realm& realm = this->create_realm();
