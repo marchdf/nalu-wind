@@ -38,8 +38,7 @@ public:
     ScalarFieldType *thermalCond,
     ScalarFieldType *specHeat,
     ScalarFieldType *turbViscosity,
-    const double turbSigma,
-    const bool useAvgMdot = false);
+    const double turbSigma);
 
   virtual ~AssembleScalarEigenEdgeSolverAlgorithm();
   virtual void initialize_connectivity();
