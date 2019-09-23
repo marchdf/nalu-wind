@@ -14,6 +14,7 @@
 #include "NaluParsing.h"
 
 #include "ngp_algorithms/NodalGradAlgDriver.h"
+#include "ngp_algorithms/EffDiffFluxCoeffAlg.h"
 
 namespace stk{
 struct topology;
@@ -195,6 +196,8 @@ public:
   virtual void assemble_and_solve(
     stk::mesh::FieldBase *deltaSolution);
 
+  void compute_turbulence_parameters();
+
   const bool managePNG_;
 
   VectorFieldType *velocity_;
@@ -209,10 +212,11 @@ public:
   ScalarFieldType* Udiag_{nullptr};
 
   VectorNodalGradAlgDriver nodalGradAlgDriver_;
-  AlgorithmDriver *diffFluxCoeffAlgDriver_;
-  AlgorithmDriver *tviscAlgDriver_;
+  NgpAlgDriver wallFuncAlgDriver_;
+  std::unique_ptr<EffDiffFluxCoeffAlg> diffFluxCoeffAlg_{nullptr};
+  std::unique_ptr<Algorithm> tviscAlg_{nullptr};
+
   AlgorithmDriver *cflReyAlgDriver_;
-  AlgorithmDriver *wallFunctionParamsAlgDriver_;
 
   ProjectedNodalGradientEquationSystem *projectedNodalGradEqs_;
 

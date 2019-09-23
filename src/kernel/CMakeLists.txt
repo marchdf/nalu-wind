@@ -29,6 +29,7 @@ add_sources(GlobalSourceList
    ScalarDiffElemKernel.C
    ScalarDiffHOElemKernel.C
    ScalarDiffFemKernel.C
+   ScalarFluxBCElemKernel.C
    ScalarFluxPenaltyElemKernel.C
    ScalarMassElemKernel.C
    ScalarMassHOElemKernel.C

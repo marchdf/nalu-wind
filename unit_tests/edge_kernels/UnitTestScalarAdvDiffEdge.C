@@ -70,6 +70,8 @@ TEST_F(MixtureFractionKernelHex8Mesh, NGP_adv_diff_edge_tpetra)
   unit_test_utils::TpetraHelperObjectsEdge helperObjs(bulk_, numDof);
 
   helperObjs.realm.naluGlobalId_ = naluGlobalId_;
+  helperObjs.realm.tpetGlobalId_ = tpetGlobalId_;
+
   helperObjs.realm.set_global_id();
 
   bool useAvgMdot_ = false;
@@ -93,6 +95,24 @@ TEST_F(MixtureFractionKernelHex8Mesh, NGP_adv_diff_edge_tpetra)
     else {
       helperObjs.check_against_sparse_gold_values(golds::rowOffsets_P1, golds::cols_P1,
                                                   golds::vals_P1, golds::rhs_P1);
+    }
+  }
+
+  //copy_stk_to_tpetra is not converted to ngp::Field yet, but this test still
+  //works due to tpetra using UVM space.
+  helperObjs.linsys->copy_stk_to_tpetra(viscosity_, helperObjs.linsys->getOwnedRhs());
+  helperObjs.linsys->copy_tpetra_to_stk(helperObjs.linsys->getOwnedRhs(), mixFraction_);
+
+  auto ngpField = helperObjs.realm.ngp_field_manager().get_field<double>(mixFraction_->mesh_meta_data_ordinal());
+  ngpField.sync_to_host();
+
+  const stk::mesh::BucketVector& buckets = bulk_.get_buckets(stk::topology::NODE_RANK,
+                                  bulk_.mesh_meta_data().locally_owned_part());
+  for(const stk::mesh::Bucket* bptr : buckets) {
+    for(stk::mesh::Entity node : *bptr) {
+      const double* data1 = static_cast<double*>(stk::mesh::field_data(*viscosity_, node));
+      const double* data2 = static_cast<double*>(stk::mesh::field_data(*mixFraction_, node));
+      EXPECT_NEAR(*data1, *data2, 1.e-12);
     }
   }
 }

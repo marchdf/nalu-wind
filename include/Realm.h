@@ -363,7 +363,9 @@ class Realm {
 
   inline NgpMeshInfo& mesh_info()
   {
-    if (!meshInfo_) {
+    if ((meshModCount_ != bulkData_->synchronized_count()) ||
+        (!meshInfo_)) {
+      meshModCount_ = bulkData_->synchronized_count();
       meshInfo_.reset(new NgpMeshInfo(*bulkData_));
     }
     return *meshInfo_;
@@ -661,6 +663,7 @@ class Realm {
    *  endIdx(MPI_rank) + 1.
    */
   HypreIDFieldType* hypreGlobalId_{nullptr};
+  TpetIDFieldType* tpetGlobalId_{nullptr};
 
   /** Flag indicating whether Hypre solver is being used for any of the equation
    * systems.
@@ -669,6 +672,8 @@ class Realm {
 
 protected:
   std::unique_ptr<NgpMeshInfo> meshInfo_;
+
+  unsigned meshModCount_{0};
 
 };
 

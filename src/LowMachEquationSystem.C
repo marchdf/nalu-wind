@@ -40,6 +40,7 @@
 #include <AssembleNodalGradUNonConformalAlgorithm.h>
 #include <AssembleNodeSolverAlgorithm.h>
 #include <AuxFunctionAlgorithm.h>
+#include <ComputeGeometryAlgorithmDriver.h>
 #include <ComputeMdotAlgorithmDriver.h>
 #include <ComputeMdotInflowAlgorithm.h>
 #include <ComputeMdotEdgeAlgorithm.h>
@@ -146,9 +147,13 @@
 #include "node_kernels/ContinuityMassBDFNodeKernel.h"
 
 // ngp
+#include "ngp_algorithms/ABLWallFrictionVelAlg.h"
 #include "ngp_algorithms/NodalGradEdgeAlg.h"
 #include "ngp_algorithms/NodalGradElemAlg.h"
 #include "ngp_algorithms/NodalGradBndryElemAlg.h"
+#include "ngp_algorithms/EffDiffFluxCoeffAlg.h"
+#include "ngp_algorithms/TurbViscKsgsAlg.h"
+#include "ngp_algorithms/WallFuncGeometryAlg.h"
 #include "ngp_utils/NgpLoopUtils.h"
 #include "ngp_utils/NgpFieldBLAS.h"
 
@@ -712,11 +717,8 @@ LowMachEquationSystem::solve_and_update()
     isInit_ = false;
   }
 
-  // compute tvisc
-  momentumEqSys_->tviscAlgDriver_->execute();
-
-  // compute effective viscosity
-  momentumEqSys_->diffFluxCoeffAlgDriver_->execute();
+  // compute tvisc and effective viscosity
+  momentumEqSys_->compute_turbulence_parameters();
 
   // start the iteration loop
   for ( int k = 0; k < maxIterations_; ++k ) {
@@ -729,12 +731,10 @@ LowMachEquationSystem::solve_and_update()
 
     // update all of velocity
     timeA = NaluEnv::self().nalu_time();
-    field_axpby(
-      realm_.meta_data(),
-      realm_.bulk_data(),
+    solution_update(
       1.0, *momentumEqSys_->uTmp_,
       1.0, momentumEqSys_->velocity_->field_of_state(stk::mesh::StateNP1),
-      realm_.get_activate_aura());
+      realm_.meta_data().spatial_dimension());
     timeB = NaluEnv::self().nalu_time();
     momentumEqSys_->timerAssemble_ += (timeB-timeA);
 
@@ -754,12 +754,9 @@ LowMachEquationSystem::solve_and_update()
 
     // update pressure
     timeA = NaluEnv::self().nalu_time();
-    field_axpby(
-      realm_.meta_data(),
-      realm_.bulk_data(),
+    solution_update(
       1.0, *continuityEqSys_->pTmp_,
-      1.0, *continuityEqSys_->pressure_,
-      realm_.get_activate_aura());
+      1.0, *continuityEqSys_->pressure_);
     timeB = NaluEnv::self().nalu_time();
     continuityEqSys_->timerAssemble_ += (timeB-timeA);
 
@@ -777,12 +774,9 @@ LowMachEquationSystem::solve_and_update()
     const double relaxFP = realm_.solutionOptions_->get_relaxation_factor(dofName);
     if (std::fabs(1.0 - relaxFP) > 1.0e-3) {
       timeA = NaluEnv::self().nalu_time();
-      field_axpby(
-        realm_.meta_data(),
-        realm_.bulk_data(),
+      solution_update(
         (relaxFP - 1.0), *continuityEqSys_->pTmp_,
-        1.0, *continuityEqSys_->pressure_,
-        realm_.get_activate_aura());
+        1.0, *continuityEqSys_->pressure_);
       continuityEqSys_->compute_projected_nodal_gradient();
       timeB = NaluEnv::self().nalu_time();
       continuityEqSys_->timerAssemble_ += (timeB-timeA);
@@ -833,12 +827,9 @@ LowMachEquationSystem::post_adapt_work()
       continuityEqSys_->assemble_and_solve(continuityEqSys_->pTmp_);
       
       // update pressure
-      field_axpby(
-          realm_.meta_data(),
-          realm_.bulk_data(),
-          1.0, *continuityEqSys_->pTmp_,
-          1.0, *continuityEqSys_->pressure_,
-          realm_.get_activate_aura());
+      solution_update(
+        1.0, *continuityEqSys_->pTmp_,
+        1.0, *continuityEqSys_->pressure_);
     }
     
     // compute mdot
@@ -902,7 +893,7 @@ LowMachEquationSystem::project_nodal_velocity()
     using Traits = nalu_ngp::NGPMeshTraits<>;
     using MeshIndex = Traits::MeshIndex;
     const stk::mesh::Selector sel =
-      (!stk::mesh::selectUnion(momentumEqSys_->notProjectedPart_) &
+      ((!stk::mesh::selectUnion(momentumEqSys_->notProjectedPart_)) &
        stk::mesh::selectField(*continuityEqSys_->dpdx_));
     nalu_ngp::run_entity_algorithm(
       ngpMesh, stk::topology::NODE_RANK, sel,
@@ -957,10 +948,8 @@ MomentumEquationSystem::MomentumEquationSystem(
     tvisc_(NULL),
     evisc_(NULL),
     nodalGradAlgDriver_(realm_, "dudx"),
-    diffFluxCoeffAlgDriver_(new AlgorithmDriver(realm_)),
-    tviscAlgDriver_(new AlgorithmDriver(realm_)),
+    wallFuncAlgDriver_(realm_),
     cflReyAlgDriver_(new AlgorithmDriver(realm_)),
-    wallFunctionParamsAlgDriver_(NULL),
     projectedNodalGradEqs_(NULL),
     firstPNGResidual_(0.0)
 {
@@ -989,12 +978,7 @@ MomentumEquationSystem::MomentumEquationSystem(
 //--------------------------------------------------------------------------
 MomentumEquationSystem::~MomentumEquationSystem()
 {
-  delete diffFluxCoeffAlgDriver_;
-  delete tviscAlgDriver_;
   delete cflReyAlgDriver_;
-
-  if ( NULL != wallFunctionParamsAlgDriver_)
-    delete wallFunctionParamsAlgDriver_;
 }
 
 
@@ -1021,8 +1005,7 @@ MomentumEquationSystem::initial_work()
   {
     const double timeA = NaluEnv::self().nalu_time();
     compute_wall_function_params();
-    tviscAlgDriver_->execute();
-    diffFluxCoeffAlgDriver_->execute();
+    compute_turbulence_parameters();
     cflReyAlgDriver_->execute();
 
     const double timeB = NaluEnv::self().nalu_time();
@@ -1511,45 +1494,43 @@ MomentumEquationSystem::register_interior_algorithm(
 
   // effective viscosity alg
   if ( realm_.is_turbulent() ) {
-    std::map<AlgorithmType, Algorithm *>::iterator itev =
-      diffFluxCoeffAlgDriver_->algMap_.find(algType);
-    if ( itev == diffFluxCoeffAlgDriver_->algMap_.end() ) {
-      EffectiveDiffFluxCoeffAlgorithm *theAlg
-        = new EffectiveDiffFluxCoeffAlgorithm(realm_, part, visc_, tvisc_, evisc_, 1.0, 1.0);
-      diffFluxCoeffAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      itev->second->partVec_.push_back(part);
+    if (!diffFluxCoeffAlg_) {
+      diffFluxCoeffAlg_.reset(
+        new EffDiffFluxCoeffAlg(
+          realm_, part, visc_, tvisc_, evisc_, 1.0, 1.0, realm_.is_turbulent()));
+    } else {
+      diffFluxCoeffAlg_->partVec_.push_back(part);
     }
 
     // deal with tvisc better? - possibly should be on EqSysManager?
-    std::map<AlgorithmType, Algorithm *>::iterator it_tv =
-      tviscAlgDriver_->algMap_.find(algType);
-    if ( it_tv == tviscAlgDriver_->algMap_.end() ) {
-      Algorithm * theAlg = NULL;
-      switch (realm_.solutionOptions_->turbulenceModel_ ) {
-        case KSGS:
-          theAlg = new TurbViscKsgsAlgorithm(realm_, part);
-          break;
-        case SMAGORINSKY:
-          theAlg = new TurbViscSmagorinskyAlgorithm(realm_, part);
-          break;
-        case WALE:
-          theAlg = new TurbViscWaleAlgorithm(realm_, part);
-          break;
-        case SST: case SST_DES: 
-          theAlg = new TurbViscSSTAlgorithm(realm_, part);
-          break;
-        case SST_TAMS:
-          theAlg = new TurbViscSSTAlgorithm(realm_,part, true);
-          break;
-        default:
-          throw std::runtime_error("non-supported turb model");
+    if (!tviscAlg_) {
+      switch (realm_.solutionOptions_->turbulenceModel_) {
+      case KSGS:
+        tviscAlg_.reset(new TurbViscKsgsAlg(realm_, part, tvisc_));
+        break;
+
+      case SMAGORINSKY:
+        tviscAlg_.reset(new TurbViscSmagorinskyAlgorithm(realm_, part));
+        break;
+
+      case WALE:
+        tviscAlg_.reset(new TurbViscWaleAlgorithm(realm_, part));
+        break;
+
+      case SST:
+      case SST_DES:
+        tviscAlg_.reset(new TurbViscSSTAlgorithm(realm_, part));
+        break;
+
+      case SST_TAMS:
+        tviscAlg_.reset(new TurbViscSSTAlgorithm(realm_, part, true));
+        break;
+      
+      default:
+        throw std::runtime_error("Unsupported turbulence model provided");
       }
-      tviscAlgDriver_->algMap_[algType] = theAlg;
-    }
-    else {
-      it_tv->second->partVec_.push_back(part);
+    } else {
+      tviscAlg_->partVec_.push_back(part);
     }
   }
 }
@@ -1930,10 +1911,6 @@ MomentumEquationSystem::register_wall_bc(
       =  &(meta_data.declare_field<GenericFieldType>(sideRank, "wall_normal_distance_bip"));
     stk::mesh::put_field_on_mesh(*wallNormalDistanceBip, *part, numScsBip, nullptr);
 
-    // create wallFunctionParamsAlgDriver
-    if ( NULL == wallFunctionParamsAlgDriver_)
-      wallFunctionParamsAlgDriver_ = new AlgorithmDriver(realm_);
-
     if (ablWallFunctionApproach) {
 
       // register boundary data: heat_flux_bc
@@ -1965,16 +1942,26 @@ MomentumEquationSystem::register_wall_bc(
       const double z0 = rough.z0_;
       ReferenceTemperature Tref = userData.referenceTemperature_;
       const double referenceTemperature = Tref.referenceTemperature_;
-      std::map<AlgorithmType, Algorithm *>::iterator it_utau =
-        wallFunctionParamsAlgDriver_->algMap_.find(wfAlgType);
-      if ( it_utau == wallFunctionParamsAlgDriver_->algMap_.end() ) {
-        ComputeABLWallFrictionVelocityAlgorithm *theUtauAlg =
-          new ComputeABLWallFrictionVelocityAlgorithm(realm_, part, realm_.realmUsesEdges_, grav, z0, referenceTemperature);
-        wallFunctionParamsAlgDriver_->algMap_[wfAlgType] = theUtauAlg;
+
+      {
+        // TODO Fix implementation when refactoring Geometry calcs in Realm
+        auto& algMap = realm_.computeGeometryAlgDriver_->algMap_;
+        auto it = algMap.find(wfAlgType);
+        if (it == algMap.end()) {
+          algMap[wfAlgType] = create_face_elem_algorithm<WallFuncGeometryAlg>(
+            realm_.meta_data().spatial_dimension(),
+            part->topology(),
+            get_elem_topo(realm_, *part),
+            realm_, part);
+        } else {
+          it->second->partVec_.push_back(part);
+        }
       }
-      else {
-        it_utau->second->partVec_.push_back(part);
-      }
+
+      wallFuncAlgDriver_.register_face_algorithm<ABLWallFrictionVelAlg>(
+        wfAlgType, part, "abl_wall_func", realm_.realmUsesEdges_,
+        grav, z0, referenceTemperature,
+        realm_.get_turb_model_constant(TM_kappa));
 
       if (realm_.realmUsesEdges_) {
         auto& solverAlgMap = solverAlgDriver_->solverAlgorithmMap_;
@@ -2014,17 +2001,9 @@ MomentumEquationSystem::register_wall_bc(
 
       const AlgorithmType wfAlgType = WALL_FCN;
 
-      // create algorithm for utau, yp and assembled nodal wall area (_WallFunction)
-      std::map<AlgorithmType, Algorithm *>::iterator it_utau =
-        wallFunctionParamsAlgDriver_->algMap_.find(wfAlgType);
-      if ( it_utau == wallFunctionParamsAlgDriver_->algMap_.end() ) {
-        ComputeWallFrictionVelocityAlgorithm *theUtauAlg =
-          new ComputeWallFrictionVelocityAlgorithm(realm_, part, realm_.realmUsesEdges_);
-        wallFunctionParamsAlgDriver_->algMap_[wfAlgType] = theUtauAlg;
-      }
-      else {
-        it_utau->second->partVec_.push_back(part);
-      }
+      wallFuncAlgDriver_
+        .register_legacy_algorithm<ComputeWallFrictionVelocityAlgorithm>(
+          wfAlgType, part, "wall_func", realm_.realmUsesEdges_);
 
       // create lhs/rhs algorithm; generalized for edge (nearest node usage) and element
       if ( realm_.solutionOptions_->useConsolidatedBcSolverAlg_ ) {        
@@ -2410,9 +2389,7 @@ MomentumEquationSystem::predict_state()
 void
 MomentumEquationSystem::compute_wall_function_params()
 {
-  if (NULL != wallFunctionParamsAlgDriver_){
-    wallFunctionParamsAlgDriver_->execute();
-  }
+  wallFuncAlgDriver_.execute();
 }
 
 //--------------------------------------------------------------------------
@@ -2662,6 +2639,14 @@ MomentumEquationSystem::assemble_and_solve(
       *realm_.nonConformalManager_->nonConformalGhosting_, fVec);
   if (realm_.hasOverset_)
     realm_.overset_orphan_node_field_update(Udiag_, 1, 1);
+}
+
+void MomentumEquationSystem::compute_turbulence_parameters()
+{
+  if (realm_.is_turbulent()) {
+    tviscAlg_->execute();
+    diffFluxCoeffAlg_->execute();
+  }
 }
 
 //==========================================================================

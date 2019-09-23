@@ -255,6 +255,9 @@ public:
       naluGlobalId_(
         &meta_.declare_field<GlobalIdFieldType>(
           stk::topology::NODE_RANK, "nalu_global_id",1)),
+      tpetGlobalId_(
+        &meta_.declare_field<TpetIDFieldType>(
+          stk::topology::NODE_RANK, "tpet_global_id",1)),
       dnvField_(&meta_.declare_field<ScalarFieldType>(
                   stk::topology::NODE_RANK, "dual_nodal_volume",2)),
       divMeshVelField_(&meta_.declare_field<ScalarFieldType>(
@@ -264,6 +267,7 @@ public:
           stk::topology::EDGE_RANK, "edge_area_vector"))
   {
     stk::mesh::put_field_on_mesh(*naluGlobalId_, meta_.universal_part(), 1, nullptr);
+    stk::mesh::put_field_on_mesh(*tpetGlobalId_, meta_.universal_part(), 1, nullptr);
     stk::mesh::put_field_on_mesh(*dnvField_, meta_.universal_part(), 1, nullptr);
     stk::mesh::put_field_on_mesh(*divMeshVelField_, meta_.universal_part(), 1, nullptr);
     stk::mesh::put_field_on_mesh(*edgeAreaVec_, meta_.universal_part(), spatialDim_, nullptr);
@@ -302,9 +306,12 @@ public:
   stk::mesh::PartVector partVec_;
 
   sierra::nalu::SolutionOptions solnOpts_;
+  typedef long   GlobalOrdinal;
+  typedef stk::mesh::Field<GlobalOrdinal> TpetIDFieldType;
 
   const VectorFieldType* coordinates_{nullptr};
   GlobalIdFieldType* naluGlobalId_{nullptr};
+  TpetIDFieldType* tpetGlobalId_{nullptr};
   ScalarFieldType* dnvField_{nullptr};
   ScalarFieldType* divMeshVelField_{nullptr};
   VectorFieldType* edgeAreaVec_{nullptr};
@@ -561,17 +568,21 @@ class MomentumNodeHex8Mesh : public MomentumKernelHex8Mesh
 class EnthalpyABLKernelHex8Mesh : public MomentumABLKernelHex8Mesh
 {
 public:
-    EnthalpyABLKernelHex8Mesh() : MomentumABLKernelHex8Mesh(),
+  EnthalpyABLKernelHex8Mesh()
+    : MomentumABLKernelHex8Mesh(),
       thermalCond_(&meta_.declare_field<ScalarFieldType>(
         stk::topology::NODE_RANK, "thermal_conductivity")),
       evisc_(&meta_.declare_field<ScalarFieldType>(
         stk::topology::NODE_RANK, "effective_viscosity")),
       tvisc_(&meta_.declare_field<ScalarFieldType>(
-        stk::topology::NODE_RANK, "turbulent_viscosity"))
+        stk::topology::NODE_RANK, "turbulent_viscosity")),
+      heatFluxBC_(&meta_.declare_field<ScalarFieldType>(
+        stk::topology::NODE_RANK, "heat_flux_bc"))
   {
     stk::mesh::put_field_on_mesh(*thermalCond_, meta_.universal_part(), 1, nullptr);
     stk::mesh::put_field_on_mesh(*evisc_, meta_.universal_part(), 1, nullptr);
     stk::mesh::put_field_on_mesh(*tvisc_, meta_.universal_part(), 1, nullptr);
+    stk::mesh::put_field_on_mesh(*heatFluxBC_, meta_.universal_part(), 1, nullptr);
   }
 
   virtual ~EnthalpyABLKernelHex8Mesh () {}
@@ -583,11 +594,13 @@ public:
     stk::mesh::field_fill(0.0, *thermalCond_);
     stk::mesh::field_fill(0.0, *evisc_);
     stk::mesh::field_fill(0.3, *tvisc_);
+    stk::mesh::field_fill(100.0, *heatFluxBC_);
   }
 
   ScalarFieldType* thermalCond_{nullptr};
   ScalarFieldType* evisc_{nullptr};
   ScalarFieldType* tvisc_{nullptr};
+  ScalarFieldType* heatFluxBC_{nullptr};
 };
 
 /** Test Fixture for the SST Kernels
