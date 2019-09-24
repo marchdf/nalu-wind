@@ -68,11 +68,7 @@ add_sources(GlobalSourceList
    ComputeMdotElemOpenPenaltyAlgorithm.C
    ComputeMdotInflowAlgorithm.C
    ComputeMdotNonConformalAlgorithm.C
-   ComputeMetricTensorNodeAlgorithm.C
    ComputeSSTMaxLengthScaleElemAlgorithm.C
-   ComputeTAMSAvgMdotEdgeAlgorithm.C
-   ComputeTAMSAvgMdotElemAlgorithm.C
-   ComputeSSTTAMSAveragesNodeAlgorithm.C
    ComputeTurbKineticEnergyWallFunctionAlgorithm.C
    ComputeWallFrictionVelocityAlgorithm.C
    ComputeWallModelSDRWallAlgorithm.C
