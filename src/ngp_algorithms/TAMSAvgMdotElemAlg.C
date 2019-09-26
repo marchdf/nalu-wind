@@ -40,7 +40,8 @@ TAMSAvgMdotElemAlg<AlgTraits>::TAMSAvgMdotElemAlg(
 
   const auto coordID = get_field_ordinal(
     realm_.meta_data(), realm_.solutionOptions_->get_coordinates_name());
-  dataNeeded_.add_coordinates_field(coordID, AlgTraits::nDim_, CURRENT_COORDINATES);
+  dataNeeded_.add_coordinates_field(
+    coordID, AlgTraits::nDim_, CURRENT_COORDINATES);
   dataNeeded_.add_gathered_nodal_field(avgTime_, 1);
   dataNeeded_.add_element_field(mdot_, AlgTraits::numScsIp_);
   dataNeeded_.add_element_field(avgMdot_, AlgTraits::numScsIp_);
@@ -61,6 +62,7 @@ TAMSAvgMdotElemAlg<AlgTraits>::execute()
   const auto ngpMesh = meshInfo.ngp_mesh();
   const auto& fieldMgr = meshInfo.ngp_field_manager();
   auto avgMdot = fieldMgr.template get_field<double>(avgMdot_);
+  const auto avgMdotOps = nalu_ngp::simd_elem_field_updater(ngpMesh, avgMdot);
 
   // Bring class members into local scope for device capture
   const bool useShifted = useShifted_;
@@ -76,9 +78,6 @@ TAMSAvgMdotElemAlg<AlgTraits>::execute()
   nalu_ngp::run_elem_algorithm(
     meshInfo, stk::topology::ELEM_RANK, dataNeeded_, sel,
     KOKKOS_LAMBDA(ElemSimdDataType & edata) {
-      const auto avgMdotOps =
-        nalu_ngp::simd_elem_field_updater(ngpMesh, avgMdot, edata);
-
       auto& scrView = edata.simdScrView;
       const auto& v_avgTime = scrView.get_scratch_view_1D(avgTimeID);
       const auto& v_mdot = scrView.get_scratch_view_1D(mdotID);
@@ -97,7 +96,8 @@ TAMSAvgMdotElemAlg<AlgTraits>::execute()
         const DoubleType weightAvg = stk::math::max(1.0 - dt / avgTimeIp, 0.0);
         const DoubleType weightInst = stk::math::min(dt / avgTimeIp, 1.0);
 
-        avgMdotOps(ip) = weightAvg * v_avgMdot(ip) + weightInst * v_mdot(ip);
+        avgMdotOps(edata, ip) =
+          weightAvg * v_avgMdot(ip) + weightInst * v_mdot(ip);
       }
     });
 }

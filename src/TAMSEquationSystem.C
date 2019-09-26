@@ -17,7 +17,6 @@
 #include <SolutionOptions.h>
 #include <TAMSEquationSystem.h>
 #include <TimeIntegrator.h>
-#include <TurbViscSSTAlgorithm.h>
 
 // template for supp algs
 #include <AlgTraits.h>
@@ -51,6 +50,7 @@
 #include "ngp_algorithms/FieldUpdateAlgDriver.h"
 #include "ngp_utils/NgpFieldBLAS.h"
 #include "ngp_utils/NgpTypes.h"
+#include "ngp_algorithms/TurbViscSSTAlg.h"
 #include "ngp_algorithms/TAMSAvgMdotEdgeAlg.h"
 #include "ngp_algorithms/TAMSAvgMdotElemAlg.h"
 #include "ngp_algorithms/SSTTAMSAveragesAlg.h"
@@ -215,7 +215,7 @@ TAMSEquationSystem::register_interior_algorithm(stk::mesh::Part* part)
   if (!tviscAlg_) {
     switch (realm_.solutionOptions_->turbulenceModel_) {
     case SST_TAMS:
-      tviscAlg_.reset(new TurbViscSSTAlgorithm(realm_, part, true));
+      tviscAlg_.reset(new TurbViscSSTAlg(realm_, part, true));
       break;
     default:
       throw std::runtime_error("non-supported turb model in TAMS Eq Sys");

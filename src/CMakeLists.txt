@@ -152,7 +152,6 @@ add_sources(GlobalSourceList
    TurbKineticEnergyEquationSystem.C
    TurbKineticEnergyKsgsBuoyantElemSuppAlg.C
    TurbViscKsgsAlgorithm.C
-   TurbViscSSTAlgorithm.C
    TurbViscSmagorinskyAlgorithm.C
    TurbViscWaleAlgorithm.C
    TurbulenceAveragingPostProcessing.C

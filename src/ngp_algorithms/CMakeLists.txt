@@ -4,6 +4,7 @@ add_sources(GlobalSourceList
   NodalGradElemAlg.C
   NodalGradBndryElemAlg.C
   EffDiffFluxCoeffAlg.C
+  EffSSTDiffFluxCoeffAlg.C
   EnthalpyEffDiffFluxCoeffAlg.C
   MdotEdgeAlg.C
   TAMSAvgMdotEdgeAlg.C
@@ -11,6 +12,7 @@ add_sources(GlobalSourceList
   SSTTAMSAveragesAlg.C
   MetricTensorElemAlg.C
   TurbViscKsgsAlg.C
+  TurbViscSSTAlg.C
   WallFuncGeometryAlg.C
   ABLWallFrictionVelAlg.C
   TKEWallFuncAlg.C
