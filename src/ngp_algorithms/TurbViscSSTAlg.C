@@ -21,7 +21,7 @@ TurbViscSSTAlg::TurbViscSSTAlg(
   stk::mesh::Part *part,
   const bool useAverages
 ) : Algorithm(realm, part),
-    density_(get_field_ordinal(realm.meta_data(), (useAverages) ? "average_density" : "density")),
+    density_(get_field_ordinal(realm.meta_data(), "density")),
     viscosity_(get_field_ordinal(realm.meta_data(), "viscosity")),
     tke_(get_field_ordinal(realm.meta_data(), "turbulent_ke")),
     sdr_(get_field_ordinal(realm.meta_data(), "specific_dissipation_rate")),

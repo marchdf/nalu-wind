@@ -51,14 +51,8 @@ TurbViscSSTAlgorithm::TurbViscSSTAlgorithm(
   tke_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "turbulent_ke");
   sdr_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "specific_dissipation_rate");
   minDistance_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "minimum_distance_to_wall");
-  if (useAverages){
-    density_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "average_density");
-    dudx_ = meta_data.get_field<GenericFieldType>(stk::topology::NODE_RANK, "average_dudx");
-  }
-  else{
-    density_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "density");
-    dudx_ = meta_data.get_field<GenericFieldType>(stk::topology::NODE_RANK, "dudx");
-  }
+  density_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "density");
+  dudx_ = meta_data.get_field<GenericFieldType>(stk::topology::NODE_RANK, (useAverages) : "average_dudx" ? "dudx");
   tvisc_ = meta_data.get_field<ScalarFieldType>(stk::topology::NODE_RANK, "turbulent_viscosity");
 }
 
