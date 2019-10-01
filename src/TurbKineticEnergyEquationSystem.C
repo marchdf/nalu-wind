@@ -145,7 +145,6 @@ TurbKineticEnergyEquationSystem::TurbKineticEnergyEquationSystem(
     tvisc_(NULL),
     evisc_(NULL),
     nodalGradAlgDriver_(realm_, "dkdx"),
-    wallFuncAlgDriver_(realm_),
     turbulenceModel_(realm_.solutionOptions_->turbulenceModel_),
     projectedNodalGradEqs_(NULL),
     isInit_(true)
@@ -682,12 +681,14 @@ TurbKineticEnergyEquationSystem::register_wall_bc(
   }
 
   if ( wallFunctionApproach ) {
-
     // need to register the assembles wall value for tke; can not share with tke_bc
     ScalarFieldType *theAssembledField = &(meta_data.declare_field<ScalarFieldType>(stk::topology::NODE_RANK, "wall_model_tke_bc"));
     stk::mesh::put_field_on_mesh(*theAssembledField, *part, nullptr);
 
-    wallFuncAlgDriver_.register_face_algorithm<TKEWallFuncAlg>(
+    if (!wallFuncAlgDriver_)
+      wallFuncAlgDriver_.reset(new TKEWallFuncAlgDriver(realm_));
+
+    wallFuncAlgDriver_->register_face_algorithm<TKEWallFuncAlg>(
       algType, part, "tke_wall_func");
   }
   else if ( tkeSpecified ) {
@@ -957,7 +958,8 @@ TurbKineticEnergyEquationSystem::compute_effective_diff_flux_coeff()
 void
 TurbKineticEnergyEquationSystem::compute_wall_model_parameters()
 {
-  wallFuncAlgDriver_.execute();
+  if (wallFuncAlgDriver_)
+    wallFuncAlgDriver_->execute();
 }
 
 //--------------------------------------------------------------------------

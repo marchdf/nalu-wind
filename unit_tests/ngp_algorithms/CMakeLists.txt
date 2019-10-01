@@ -7,4 +7,5 @@ add_sources(GlobalUnitSourceList
   UnitTestMdotAlg.C
   UnitTestTurbViscKsgsAlg.C
   UnitTestTurbViscSSTAlg.C
+  UnitTestGeometryAlg.C
   )

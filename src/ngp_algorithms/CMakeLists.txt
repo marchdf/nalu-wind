@@ -16,9 +16,13 @@ add_sources(GlobalSourceList
   WallFuncGeometryAlg.C
   ABLWallFrictionVelAlg.C
   TKEWallFuncAlg.C
+  GeometryInteriorAlg.C
+  GeometryBoundaryAlg.C
 
   # Algorithm Drivers
   NgpAlgDriver.C
   NodalGradAlgDriver.C
   FieldUpdateAlgDriver.C
+  TKEWallFuncAlgDriver.C
+  GeometryAlgDriver.C
   )
