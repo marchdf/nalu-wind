@@ -94,7 +94,7 @@ TEST_F(TAMSKernelHex8Mesh, NGP_turb_visc_ssttams_alg)
       0.57277822202446083,
     };
 
-    const double tol = 1.0e-16;
+    const double tol = 1.0e-15;
 
     stk::mesh::Selector sel = meta_.universal_part();
     const auto& bkts = bulk_.get_buckets(stk::topology::NODE_RANK, sel);
