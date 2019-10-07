@@ -145,7 +145,6 @@ add_sources(GlobalSourceList
    SurfaceForceAndMomentAlgorithmDriver.C
    SurfaceForceAndMomentWallFunctionAlgorithm.C
    TAMSAlgDriver.C
-   TAMSEquationSystem.C
    TimeIntegrator.C
    TpetraLinearSystem.C
    TpetraLinearSystemHelpers.C

@@ -185,11 +185,6 @@ ShearStressTransportEquationSystem::solve_and_update()
     sdrEqSys_->assemble_nodal_gradient();
     clip_min_distance_to_wall();
 
-    // FIXME: Figure out a way to do this properly in TAMS Eqn System, so that 
-    //        they are decoupled
-    if (realm_.solutionOptions_->turbulenceModel_ == SST_TAMS) 
-        initialize_average_mdot();
-    
     // deal with DES option
     if ( SST_DES == realm_.solutionOptions_->turbulenceModel_ )
       sstMaxLengthScaleAlgDriver_->execute();
@@ -567,84 +562,6 @@ ShearStressTransportEquationSystem::compute_f_one_blending()
       // real deal
       fOne[k] = std::tanh(fArgOne*fArgOne*fArgOne*fArgOne);
 
-    }
-  }
-}
-
-//--------------------------------------------------------------------------
-//-------- initialize_average_mdot -----------------------------------------
-//--------------------------------------------------------------------------
-void
-ShearStressTransportEquationSystem::initialize_average_mdot()
-{
-  // Don't do this if it's a restart and average_mdot has been defined...
-  if (resetTAMSAverages_) {
-
-    const auto& meta = realm_.meta_data();
-    const auto& ngpMesh = realm_.ngp_mesh();
-    const auto& fieldMgr = realm_.ngp_field_manager();
-
-    if (realm_.realmUsesEdges_) {
-      auto& avgMdot = fieldMgr.get_field<double>(get_field_ordinal(
-        meta, "average_mass_flow_rate", stk::topology::EDGE_RANK));
-      const auto& massFlowRate = fieldMgr.get_field<double>(
-        get_field_ordinal(meta, "mass_flow_rate", stk::topology::EDGE_RANK));
-
-      const stk::mesh::Selector sel =
-        (meta.locally_owned_part() | meta.globally_shared_part()) &
-        stk::mesh::selectField(
-          *meta.get_field(stk::topology::EDGE_RANK, "average_mass_flow_rate"));
-
-      nalu_ngp::field_copy(
-        ngpMesh, sel, avgMdot, massFlowRate, 1, stk::topology::EDGE_RANK);
-    } else {
-
-      // // Ideally use this. But it doesn't work yet
-      // auto& avgMdot = fieldMgr.get_field<double>(get_field_ordinal(meta, "average_mass_flow_rate_scs", stk::topology::ELEM_RANK));
-      // const auto& massFlowRate =
-      //   fieldMgr.get_field<double>(get_field_ordinal(meta, "mass_flow_rate_scs", stk::topology::ELEM_RANK));
-
-      // const stk::mesh::Selector sel =(meta.locally_owned_part()| meta.globally_shared_part()) & stk::mesh::selectField(*meta.get_field(stk::topology::ELEM_RANK, "average_mass_flow_rate_scs"));
-      
-      // nalu_ngp::field_copy(ngpMesh, sel, avgMdot, massFlowRate, avgMdot.max_components_per_entity(), stk::topology::ELEMENT_RANK);
-      
-      stk::mesh::MetaData& meta_data = realm_.meta_data();
-
-      GenericFieldType* massFlowRateScs_ =
-        meta_data.get_field<GenericFieldType>(
-          stk::topology::ELEMENT_RANK, "mass_flow_rate_scs");
-      GenericFieldType* avgMdotScs_ = meta_data.get_field<GenericFieldType>(
-        stk::topology::ELEMENT_RANK, "average_mass_flow_rate_scs");
-
-      // define some common selectors
-      stk::mesh::Selector s_all_elem =
-        (meta_data.locally_owned_part() | meta_data.globally_shared_part()) &
-        stk::mesh::selectField(*avgMdotScs_);
-
-      stk::mesh::BucketVector const& elem_buckets =
-        realm_.get_buckets(stk::topology::ELEMENT_RANK, s_all_elem);
-      for (stk::mesh::BucketVector::const_iterator ib = elem_buckets.begin();
-           ib != elem_buckets.end(); ++ib) {
-        stk::mesh::Bucket& b = **ib;
-        const stk::mesh::Bucket::size_type length = b.size();
-
-        // extract master element
-        MasterElement* meSCS =
-          sierra::nalu::MasterElementRepo::get_surface_master_element(
-            b.topology());
-
-        // extract master element specifics
-        const int numScsIp = meSCS->num_integration_points();
-
-        for (stk::mesh::Bucket::size_type k = 0; k < length; ++k) {
-          double* avgMdotScs = stk::mesh::field_data(*avgMdotScs_, b, k);
-          const double* mdotScs =
-            stk::mesh::field_data(*massFlowRateScs_, b, k);
-
-          for (int ip = 0; ip < numScsIp; ip++)
-            avgMdotScs[ip] = mdotScs[ip];
-        }
-      }
     }
   }
 }
