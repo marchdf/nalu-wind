@@ -86,7 +86,7 @@ public:
   void shifted_shape_fcn (
     double *shpfc) override;
 
-  void tri_shape_fcn(
+  KOKKOS_FUNCTION void tri_shape_fcn(
     const double *par_coord, 
     SharedMemView<DoubleType**, DeviceShmem> &shape_fcn);
 
@@ -228,7 +228,7 @@ public:
 
   KOKKOS_FUNCTION const int * adjacentNodes() final;
 
-  const int * scsIpEdgeOrd() override;
+  KOKKOS_FUNCTION const int * scsIpEdgeOrd() final;
 
   KOKKOS_FUNCTION virtual void shape_fcn(
     SharedMemView<DoubleType**, DeviceShmem> &shpfc) override;
@@ -242,7 +242,7 @@ public:
   void shifted_shape_fcn(
     double *shpfc) override;
   
-  void tri_shape_fcn(
+  KOKKOS_FUNCTION void tri_shape_fcn(
     const double *par_coord, 
     SharedMemView<DoubleType**, DeviceShmem> &shape_fcn);
 
