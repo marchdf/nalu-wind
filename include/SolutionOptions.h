@@ -210,6 +210,14 @@ public:
 
   ProjTScaleType tscaleType_{TSCALE_DEFAULT};
 
+  // dynamic forcing parameters
+  double dynamicBodyForceVelReference_{0.0};
+  double dynamicBodyForceDenReference_{1.0};
+  std::string dynamicBodyForceVelTarget_;
+  std::vector<std::string> dynamicBodyForceDragTarget_;
+  std::string dynamicBodyForceOutFile_;
+  bool dynamicBodyForceBox_{false};
+
   std::string name_;
 
   bool newHO_;

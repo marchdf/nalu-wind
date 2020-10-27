@@ -29,7 +29,7 @@ namespace nalu {
 namespace {
 
 template<typename MeshInfo>
-void compute_volume_stats(const MeshInfo& meshInfo)
+void compute_volume_stats(const MeshInfo& meshInfo, double* gVolStats)
 {
   using Traits = nalu_ngp::NGPMeshTraits<typename MeshInfo::NgpMeshType>;
 
@@ -62,7 +62,6 @@ void compute_volume_stats(const MeshInfo& meshInfo)
 
   double lVolStats[3] = {volStats.min_val, volStats.max_val,
                          volStats.total_sum};
-  double gVolStats[3] = { 0.0, 0.0, 0.0 };
   stk::all_reduce_min(
     meshInfo.bulk().parallel(), &lVolStats[0], &gVolStats[0], 1);
   stk::all_reduce_max(
@@ -200,7 +199,7 @@ void GeometryAlgDriver::post_work()
   }
 
   // Compute volume statistics and print out
-  compute_volume_stats(realm_.mesh_info());
+  compute_volume_stats(realm_.mesh_info(), volStats_);
 }
 
 }  // nalu
