@@ -7,7 +7,6 @@
 // for more details.
 //
 
-
 #include "TAMSAlgDriver.h"
 #include "master_element/MasterElementFactory.h"
 #include "Realm.h"
@@ -31,7 +30,7 @@ TAMSAlgDriver::TAMSAlgDriver(Realm& realm)
     avgTkeResolved_(NULL),
     avgDudx_(NULL),
     metric_(NULL),
-    alpha_(NULL),
+    beta_(NULL),
     resAdequacy_(NULL),
     avgResAdequacy_(NULL),
     avgProduction_(NULL),
@@ -57,37 +56,43 @@ TAMSAlgDriver::register_nodal_fields(stk::mesh::Part* part)
   stk::mesh::MetaData& meta = realm_.meta_data();
   const int nDim = meta.spatial_dimension();
 
+  // Set numStates as 2, so that avg quantities can be updated through Picard
+  // iterations
+  const int numStates = 2;
+
   // Nodal fields
-  alpha_ =
+  beta_ =
     &(meta.declare_field<ScalarFieldType>(stk::topology::NODE_RANK, "k_ratio"));
-  stk::mesh::put_field_on_mesh(*alpha_, *part, nullptr);
+  stk::mesh::put_field_on_mesh(*beta_, *part, nullptr);
 
   avgVelocity_ = &(meta.declare_field<VectorFieldType>(
-    stk::topology::NODE_RANK, "average_velocity"));
+    stk::topology::NODE_RANK, "average_velocity", numStates));
   stk::mesh::put_field_on_mesh(*avgVelocity_, *part, nDim, nullptr);
   realm_.augment_restart_variable_list("average_velocity");
 
+  // FIXME: Do i need multiple states here too?? I don't think so...
   if (
     realm_.solutionOptions_->meshMotion_ ||
     realm_.solutionOptions_->externalMeshDeformation_) {
     avgVelocityRTM_ = &(meta.declare_field<VectorFieldType>(
       stk::topology::NODE_RANK, "average_velocity_rtm"));
     stk::mesh::put_field_on_mesh(*avgVelocityRTM_, *part, nDim, nullptr);
+    // FIXME: Is this really necessary as a restart variable?
     realm_.augment_restart_variable_list("average_velocity_rtm");
   }
 
   avgProduction_ = &(meta.declare_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "average_production"));
+    stk::topology::NODE_RANK, "average_production", numStates));
   stk::mesh::put_field_on_mesh(*avgProduction_, *part, nullptr);
   realm_.augment_restart_variable_list("average_production");
 
   avgDudx_ = &(meta.declare_field<GenericFieldType>(
-    stk::topology::NODE_RANK, "average_dudx"));
+    stk::topology::NODE_RANK, "average_dudx", numStates));
   stk::mesh::put_field_on_mesh(*avgDudx_, *part, nDim * nDim, nullptr);
   realm_.augment_restart_variable_list("average_dudx");
 
   avgTkeResolved_ = &(meta.declare_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "average_tke_resolved"));
+    stk::topology::NODE_RANK, "average_tke_resolved", numStates));
   stk::mesh::put_field_on_mesh(*avgTkeResolved_, *part, nullptr);
   realm_.augment_restart_variable_list("average_tke_resolved");
 
@@ -104,7 +109,7 @@ TAMSAlgDriver::register_nodal_fields(stk::mesh::Part* part)
   stk::mesh::put_field_on_mesh(*resAdequacy_, *part, nullptr);
 
   avgResAdequacy_ = &(meta.declare_field<ScalarFieldType>(
-    stk::topology::NODE_RANK, "avg_res_adequacy_parameter"));
+    stk::topology::NODE_RANK, "avg_res_adequacy_parameter", numStates));
   stk::mesh::put_field_on_mesh(*avgResAdequacy_, *part, nullptr);
   realm_.augment_restart_variable_list("avg_res_adequacy_parameter");
 }
@@ -200,6 +205,10 @@ TAMSAlgDriver::initial_production()
 
     const auto tvisc = fieldMgr.get_field<double>(
       get_field_ordinal(meta, "turbulent_viscosity"));
+    const auto density =
+      fieldMgr.get_field<double>(get_field_ordinal(meta, "density"));
+    const auto tke =
+      fieldMgr.get_field<double>(get_field_ordinal(meta, "turbulent_ke"));
     auto avgDudx =
       fieldMgr.get_field<double>(avgDudx_->mesh_meta_data_ordinal());
 
@@ -207,8 +216,7 @@ TAMSAlgDriver::initial_production()
     auto avgProd =
       fieldMgr.get_field<double>(avgProduction_->mesh_meta_data_ordinal());
     nalu_ngp::run_entity_algorithm(
-      "TAMSAlgDriver_avgProd",
-      ngpMesh, stk::topology::NODE_RANK, sel,
+      "TAMSAlgDriver_avgProd", ngpMesh, stk::topology::NODE_RANK, sel,
       KOKKOS_LAMBDA(const Traits::MeshIndex& mi) {
         NALU_ALIGNED DblType tij[nalu_ngp::NDimMax * nalu_ngp::NDimMax];
         for (int i = 0; i < nDim; ++i) {
@@ -217,6 +225,9 @@ TAMSAlgDriver::initial_production()
                                           avgDudx.get(mi, j * nDim + i));
             tij[i * nDim + j] = 2.0 * tvisc.get(mi, 0) * avgSij;
           }
+          // FIXME: Removed for now, need to assess consistency between avgProd
+          // and rk
+          // tij[i * nDim + i] -= 2.0/3.0 * density.get(mi, 0) * tke.get(mi, 0);
         }
 
         NALU_ALIGNED DblType Pij[nalu_ngp::NDimMax * nalu_ngp::NDimMax];

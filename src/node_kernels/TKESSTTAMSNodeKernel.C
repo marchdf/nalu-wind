@@ -7,7 +7,6 @@
 // for more details.
 //
 
-
 #include "node_kernels/TKESSTTAMSNodeKernel.h"
 #include "Realm.h"
 #include "SolutionOptions.h"
@@ -64,9 +63,10 @@ TKESSTTAMSNodeKernel::execute(
 
   const NodeKernelTraits::DblType tkeFac =
     betaStar_ * rho_.get(node, 0) * sdr_.get(node, 0);
-  NodeKernelTraits::DblType Dk = tkeFac * stk::math::max(tke_.get(node, 0), 1.0e-12);
+  NodeKernelTraits::DblType Dk =
+    tkeFac * stk::math::max(tke_.get(node, 0), 1.0e-12);
 
-  Pk = stk::math::min(Pk, tkeProdLimitRatio_ * Dk);
+  Pk = stk::math::min(stk::math::max(Pk, 0.0), tkeProdLimitRatio_ * Dk);
 
   const NodeKernelTraits::DblType dualVolume = dualNodalVolume_.get(node, 0);
 

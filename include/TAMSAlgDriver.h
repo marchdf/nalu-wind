@@ -7,7 +7,6 @@
 // for more details.
 //
 
-
 #ifndef TAMSAlgDriver_h
 #define TAMSAlgDriver_h
 
@@ -43,6 +42,7 @@ public:
   void initial_production();
   void initial_mdot();
   void compute_metric_tensor();
+  void predict_state();
 
 private:
   Realm& realm_;
@@ -52,7 +52,7 @@ private:
   ScalarFieldType* avgTkeResolved_;
   GenericFieldType* avgDudx_;
   GenericFieldType* metric_;
-  ScalarFieldType* alpha_;
+  ScalarFieldType* beta_;
 
   ScalarFieldType* resAdequacy_;
   ScalarFieldType* avgResAdequacy_;

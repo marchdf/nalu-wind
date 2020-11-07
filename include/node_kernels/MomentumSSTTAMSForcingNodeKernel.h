@@ -7,7 +7,6 @@
 // for more details.
 //
 
-
 #ifndef MOMENTUMSSTTAMSFORCINGNODEKERNEL_H
 #define MOMENTUMSSTTAMSFORCINGNODEKERNEL_H
 
@@ -53,7 +52,7 @@ private:
   stk::mesh::NgpField<double> density_;
   stk::mesh::NgpField<double> tke_;
   stk::mesh::NgpField<double> sdr_;
-  stk::mesh::NgpField<double> alpha_;
+  stk::mesh::NgpField<double> beta_;
   stk::mesh::NgpField<double> Mij_;
   stk::mesh::NgpField<double> minDist_;
   stk::mesh::NgpField<double> avgVelocity_;
@@ -68,7 +67,7 @@ private:
   unsigned densityNp1ID_{stk::mesh::InvalidOrdinal};
   unsigned tkeNp1ID_{stk::mesh::InvalidOrdinal};
   unsigned sdrNp1ID_{stk::mesh::InvalidOrdinal};
-  unsigned alphaID_{stk::mesh::InvalidOrdinal};
+  unsigned betaID_{stk::mesh::InvalidOrdinal};
   unsigned MijID_{stk::mesh::InvalidOrdinal};
   unsigned minDistID_{stk::mesh::InvalidOrdinal};
   unsigned avgVelocityID_{stk::mesh::InvalidOrdinal};
@@ -81,12 +80,16 @@ private:
   const double blT_;
   const double blKol_;
   const double forceFactor_;
-  const double cMu_; 
+  const double cMu_;
+  const double periodicForcingLengthX_;
+  const double periodicForcingLengthY_;
+  const double periodicForcingLengthZ_;
   const int nDim_;
 
-  double pi_;
   double time_;
   double dt_;
+  int timestep_;
+  int iter_;
 };
 
 } // namespace nalu

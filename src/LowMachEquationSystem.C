@@ -678,6 +678,8 @@ void
 LowMachEquationSystem::pre_iter_work()
 {
   momentumEqSys_->pre_iter_work();
+  if (realm_.solutionOptions_->turbulenceModel_ == SST_TAMS) 
+      momentumEqSys_->TAMSAlgDriver_->execute();
   continuityEqSys_->pre_iter_work();
 }
 
@@ -1068,9 +1070,6 @@ MomentumEquationSystem::pre_timestep_work()
      realm_.solutionOptions_->externalMeshDeformation_)) {
     TAMSAlgDriver_->compute_metric_tensor();
   }
-
-  if (realm_.solutionOptions_->turbulenceModel_ == SST_TAMS)
-    TAMSAlgDriver_->execute();
 }
 
 //--------------------------------------------------------------------------
