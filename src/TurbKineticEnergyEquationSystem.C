@@ -46,6 +46,9 @@
 
 // UT Austin Hybrid AMS kernel
 #include <node_kernels/TKESSTAMSNodeKernel.h>
+#include <node_kernels/TKESSTLRAMSNodeKernel.h>
+#include <node_kernels/TKEKEAMSNodeKernel.h>
+#include <node_kernels/TKEKOAMSNodeKernel.h>
 
 // edge kernels
 #include <edge_kernels/ScalarEdgeSolverAlg.h>
@@ -59,7 +62,10 @@
 #include <node_kernels/TKESSTDESNodeKernel.h>
 #include <node_kernels/TKESSTIDDESNodeKernel.h>
 #include <node_kernels/TKESSTNodeKernel.h>
+#include <node_kernels/TKESSTLRNodeKernel.h>
+#include <node_kernels/TKEKENodeKernel.h>
 #include <node_kernels/TKERodiNodeKernel.h>
+#include <node_kernels/TKEKONodeKernel.h>
 
 // ngp
 #include <ngp_utils/NgpLoopUtils.h>
@@ -146,7 +152,8 @@ TurbKineticEnergyEquationSystem::TurbKineticEnergyEquationSystem(
   if (!check_for_valid_turblence_model(turbulenceModel_)) {
     throw std::runtime_error(
       "User has requested TurbKinEnergyEqs, however, turbulence model is not "
-      "KSGS, SST, SST_DES, SST_IDDES, or SST_AMS");
+      "KSGS, SST, SSTLR, SST_DES, SST_IDDES, KE, SST_AMS, SSTLR_AMS, KO, "
+      "KO_AMS or KE_AMS");
   }
 
   // create projected nodal gradient equation system
@@ -161,10 +168,16 @@ TurbKineticEnergyEquationSystem::check_for_valid_turblence_model(
 {
   switch (turbModel) {
   case SST:
+  case SSTLR:
   case KSGS:
   case SST_DES:
   case SST_AMS:
+  case SSTLR_AMS:
   case SST_IDDES:
+  case KE:
+  case KE_AMS:
+  case KO:
+  case KO_AMS:
     return true;
   default:
     return false;
@@ -251,7 +264,7 @@ TurbKineticEnergyEquationSystem::register_interior_algorithm(
     if ( itsi == solverAlgDriver_->solverAlgMap_.end() ) {
       SolverAlgorithm *theAlg = NULL;
       if ( realm_.realmUsesEdges_ ) {
-        const bool useAvgMdot = (turbulenceModel_ == SST_AMS) ? true : false;
+        const bool useAvgMdot = realm_.is_ams_model();
         theAlg = new ScalarEdgeSolverAlg(realm_, part, this, tke_, dkdx_, evisc_, useAvgMdot);
       }
       else {
@@ -291,15 +304,37 @@ TurbKineticEnergyEquationSystem::register_interior_algorithm(
         case SST:
           nodeAlg.add_kernel<TKESSTNodeKernel>(realm_.meta_data());
           break;
+        case SSTLR:
+          nodeAlg.add_kernel<TKESSTLRNodeKernel>(realm_.meta_data());
+          break;
         case SST_DES:
           nodeAlg.add_kernel<TKESSTDESNodeKernel>(realm_.meta_data());
           break;
         case SST_AMS:
           nodeAlg.add_kernel<TKESSTAMSNodeKernel>(realm_.meta_data(), realm_.solutionOptions_->get_coordinates_name());
           break;
+        case SSTLR_AMS:
+          nodeAlg.add_kernel<TKESSTLRAMSNodeKernel>(
+            realm_.meta_data(),
+            realm_.solutionOptions_->get_coordinates_name());
+          break;
         case SST_IDDES:
             nodeAlg.add_kernel<TKESSTIDDESNodeKernel>(realm_.meta_data());
             break;
+        case KE:
+          nodeAlg.add_kernel<TKEKENodeKernel>(realm_.meta_data());
+          break;
+        case KE_AMS:
+          nodeAlg.add_kernel<TKEKEAMSNodeKernel>(
+            realm_.meta_data(),
+            realm_.solutionOptions_->get_coordinates_name());
+          break;
+        case KO:
+          nodeAlg.add_kernel<TKEKONodeKernel>(realm_.meta_data());
+          break;
+        case KO_AMS:
+          nodeAlg.add_kernel<TKEKOAMSNodeKernel>(realm_.meta_data());
+          break;
         default:
           std::runtime_error("TKEEqSys: Invalid turbulence model");
           break;
@@ -337,8 +372,10 @@ TurbKineticEnergyEquationSystem::register_interior_algorithm(
       break;
     }
     case SST:
+    case SSTLR:
     case SST_DES:
     case SST_AMS:
+    case SSTLR_AMS:
     case SST_IDDES: {
       const double sigmaKOne = realm_.get_turb_model_constant(TM_sigmaKOne);
       const double sigmaKTwo = realm_.get_turb_model_constant(TM_sigmaKTwo);
@@ -346,6 +383,21 @@ TurbKineticEnergyEquationSystem::register_interior_algorithm(
         realm_, part, visc_, tvisc_, evisc_, sigmaKOne, sigmaKTwo));
       break;
     }
+    case KO:
+    case KO_AMS: { // FIXME: Hack for now - JAM
+      effDiffFluxCoeffAlg_.reset(new EffDiffFluxCoeffAlg(
+        realm_, part, visc_, tvisc_, evisc_, 1.0, 2.0, realm_.is_turbulent()));
+      break;
+    }
+    case KE:
+    case KE_AMS: {
+      const double sigmaK = realm_.get_turb_model_constant(TM_sigmaK);
+      effDiffFluxCoeffAlg_.reset(new EffDiffFluxCoeffAlg(
+        realm_, part, visc_, tvisc_, evisc_, 1.0, sigmaK,
+        realm_.is_turbulent()));
+      break;
+    }
+
     default:
       throw std::runtime_error("Unsupported turbulence model in TurbKe");
     }

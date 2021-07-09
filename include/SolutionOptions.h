@@ -123,6 +123,7 @@ public:
   double includeDivU_;
   bool mdotInterpRhoUTogether_;
   bool isTurbulent_;
+  bool isAMSModel_;
   TurbulenceModel turbulenceModel_;
   bool meshMotion_;
   bool meshTransformation_;

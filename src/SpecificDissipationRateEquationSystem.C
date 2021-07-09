@@ -50,8 +50,11 @@
 #include <node_kernels/NodeKernelUtils.h>
 #include <node_kernels/ScalarMassBDFNodeKernel.h>
 #include <node_kernels/SDRSSTNodeKernel.h>
+#include <node_kernels/SDRSSTLRNodeKernel.h>
 #include <node_kernels/SDRSSTDESNodeKernel.h>
 #include <node_kernels/ScalarGclNodeKernel.h>
+#include <node_kernels/SDRKONodeKernel.h>
+#include <node_kernels/SDRKOAMSNodeKernel.h>
 
 // ngp
 #include "ngp_utils/NgpFieldBLAS.h"
@@ -59,6 +62,7 @@
 #include "ngp_algorithms/NodalGradElemAlg.h"
 #include "ngp_algorithms/NodalGradBndryElemAlg.h"
 #include "ngp_algorithms/EffSSTDiffFluxCoeffAlg.h"
+#include "ngp_algorithms/EffDiffFluxCoeffAlg.h"
 #include "ngp_algorithms/SDRWallFuncAlg.h"
 #include "ngp_algorithms/SDRLowReWallAlg.h"
 #include "ngp_algorithms/SDRWallFuncAlgDriver.h"
@@ -66,6 +70,7 @@
 
 // UT Austin Hybrid AMS kernel
 #include <node_kernels/SDRSSTAMSNodeKernel.h>
+#include <node_kernels/SDRSSTLRAMSNodeKernel.h>
 
 #include <overset/UpdateOversetFringeAlgorithmDriver.h>
 
@@ -218,7 +223,7 @@ SpecificDissipationRateEquationSystem::register_interior_algorithm(
     if (itsi == solverAlgDriver_->solverAlgMap_.end()) {
       SolverAlgorithm* theAlg = NULL;
       if (realm_.realmUsesEdges_) {
-        const bool useAvgMdot = (realm_.solutionOptions_->turbulenceModel_ == SST_AMS) ? true : false;
+        const bool useAvgMdot = realm_.is_ams_model();
         theAlg = new ScalarEdgeSolverAlg(realm_, part, this, sdr_, dwdx_, evisc_, useAvgMdot);
       }
       else {
@@ -257,15 +262,25 @@ SpecificDissipationRateEquationSystem::register_interior_algorithm(
         if (SST == realm_.solutionOptions_->turbulenceModel_){
           NaluEnv::self().naluOutputP0() << "call SDRSSTNodeKernel1: " <<std::endl;
           nodeAlg.add_kernel<SDRSSTNodeKernel>(realm_.meta_data());
-        }
-        else if ( (SST_DES == realm_.solutionOptions_->turbulenceModel_) || (SST_IDDES == realm_.solutionOptions_->turbulenceModel_ ) ){
+        } else if (SSTLR == realm_.solutionOptions_->turbulenceModel_) {
+          nodeAlg.add_kernel<SDRSSTLRNodeKernel>(realm_.meta_data());
+        } else if (
+          (SST_DES == realm_.solutionOptions_->turbulenceModel_) ||
+          (SST_IDDES == realm_.solutionOptions_->turbulenceModel_)) {
           nodeAlg.add_kernel<SDRSSTDESNodeKernel>(realm_.meta_data());
-        }
-        else if (SST_AMS == realm_.solutionOptions_->turbulenceModel_)
+        } else if (SST_AMS == realm_.solutionOptions_->turbulenceModel_)
           nodeAlg.add_kernel<SDRSSTAMSNodeKernel>(
             realm_.meta_data(),
             realm_.solutionOptions_->get_coordinates_name());
-        else {
+        else if (SSTLR_AMS == realm_.solutionOptions_->turbulenceModel_)
+          nodeAlg.add_kernel<SDRSSTLRAMSNodeKernel>(
+            realm_.meta_data(),
+            realm_.solutionOptions_->get_coordinates_name());
+        else if (KO == realm_.solutionOptions_->turbulenceModel_) {
+          nodeAlg.add_kernel<SDRKONodeKernel>(realm_.meta_data());
+        } else if (KO_AMS == realm_.solutionOptions_->turbulenceModel_) {
+          nodeAlg.add_kernel<SDRKOAMSNodeKernel>(realm_.meta_data());
+        } else {
           nodeAlg.add_kernel<SDRSSTNodeKernel>(realm_.meta_data());
           NaluEnv::self().naluOutputP0() << "call SDRSSTNodeKernel2: " <<std::endl;
         }
@@ -286,10 +301,22 @@ SpecificDissipationRateEquationSystem::register_interior_algorithm(
 
   // effective diffusive flux coefficient alg for SST
   if (!effDiffFluxAlg_) {
-    const double sigmaWOne = realm_.get_turb_model_constant(TM_sigmaWOne);
-    const double sigmaWTwo = realm_.get_turb_model_constant(TM_sigmaWTwo);
-    effDiffFluxAlg_.reset(new EffSSTDiffFluxCoeffAlg(
-      realm_, part, visc_, tvisc_, evisc_, sigmaWOne, sigmaWTwo));
+    if (KO == realm_.solutionOptions_->turbulenceModel_) { // FIXME: Hack for
+                                                           // now - JAM
+      effDiffFluxAlg_.reset(new EffDiffFluxCoeffAlg(
+        realm_, part, visc_, tvisc_, evisc_, 1.0, 2.0, realm_.is_turbulent()));
+    } else if (KO_AMS == realm_.solutionOptions_->turbulenceModel_) { // FIXME:
+                                                                      // Hack
+                                                                      // for now
+                                                                      // - JAM
+      effDiffFluxAlg_.reset(new EffDiffFluxCoeffAlg(
+        realm_, part, visc_, tvisc_, evisc_, 1.0, 2.0, realm_.is_turbulent()));
+    } else {
+      const double sigmaWOne = realm_.get_turb_model_constant(TM_sigmaWOne);
+      const double sigmaWTwo = realm_.get_turb_model_constant(TM_sigmaWTwo);
+      effDiffFluxAlg_.reset(new EffSSTDiffFluxCoeffAlg(
+        realm_, part, visc_, tvisc_, evisc_, sigmaWOne, sigmaWTwo));
+    }
   } else {
     effDiffFluxAlg_->partVec_.push_back(part);
   }

@@ -10,7 +10,7 @@
 #ifndef SSTAMSAveragesAlg_h
 #define SSTAMSAveragesAlg_h
 
-#include "Algorithm.h"
+#include "AMSAveragesAlg.h"
 #include "FieldTypeDef.h"
 
 #include "stk_mesh/base/Types.hpp"
@@ -20,7 +20,7 @@ namespace nalu {
 
 class Realm;
 
-class SSTAMSAveragesAlg : public Algorithm
+class SSTAMSAveragesAlg : public AMSAveragesAlg
 {
 public:
   using DblType = double;
@@ -37,6 +37,8 @@ private:
   const DblType v2cMu_;
   const DblType aspectRatioSwitch_;
   const DblType avgTimeCoeff_;
+  const DblType alphaPow_;
+  const DblType alphaScaPow_;
   const bool meshMotion_;
   const bool RANSBelowKs_;
   const DblType z0_;
@@ -68,7 +70,7 @@ private:
   unsigned wallDist_{stk::mesh::InvalidOrdinal};
   unsigned coordinates_{stk::mesh::InvalidOrdinal};
 
-  // Proper definition of beta_kol in SST-AMS doesn't work 
+  // Proper definition of beta_kol in SST-AMS doesn't work
   // near walls, so emprically tested floor is used currently
   static constexpr double beta_kol = 0.01;
 };

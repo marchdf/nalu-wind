@@ -11,6 +11,11 @@
 #include "edge_kernels/AssembleAMSEdgeKernelAlg.h"
 #include "edge_kernels/EdgeKernel.h"
 #include "edge_kernels/MomentumSSTAMSDiffEdgeKernel.h"
+#include "edge_kernels/MomentumSSTLRAMSDiffEdgeKernel.h"
+#include "edge_kernels/MomentumKEAMSDiffEdgeKernel.h"
+#include "edge_kernels/MomentumKOAMSDiffEdgeKernel.h"
+#include "Realm.h"
+#include "SolutionOptions.h"
 
 namespace sierra {
 namespace nalu {
@@ -19,9 +24,27 @@ AssembleAMSEdgeKernelAlg::AssembleAMSEdgeKernelAlg(
   Realm& realm, stk::mesh::Part* part, EquationSystem* eqSystem)
   : AssembleEdgeKernelAlg(realm, part, eqSystem)
 {
+
   // Register AMS Kernels directly
-  add_kernel<MomentumSSTAMSDiffEdgeKernel>(
-    realm_.bulk_data(), *realm_.solutionOptions_);
+  if (realm_.solutionOptions_->turbulenceModel_ == SST_AMS)
+    add_kernel<MomentumSSTAMSDiffEdgeKernel>(
+      realm_.bulk_data(), *realm_.solutionOptions_);
+
+  else if (realm_.solutionOptions_->turbulenceModel_ == SSTLR_AMS)
+    add_kernel<MomentumSSTLRAMSDiffEdgeKernel>(
+      realm_.bulk_data(), *realm_.solutionOptions_);
+
+  else if (realm_.solutionOptions_->turbulenceModel_ == KE_AMS)
+    add_kernel<MomentumKEAMSDiffEdgeKernel>(
+      realm_.bulk_data(), *realm_.solutionOptions_);
+
+  else if (realm_.solutionOptions_->turbulenceModel_ == KO_AMS)
+    add_kernel<MomentumKOAMSDiffEdgeKernel>(
+      realm_.bulk_data(), *realm_.solutionOptions_);
+
+  else
+    throw std::runtime_error(
+      "AssembleAMSEdgeKernelAlg: Not a valid turbulence model");
 }
 
 } // namespace nalu

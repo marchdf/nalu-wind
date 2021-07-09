@@ -22,7 +22,7 @@
 #include <stk_mesh/base/FieldParallel.hpp>
 #include <stk_mesh/base/MetaData.hpp>
 
-//stk_mesh/base/fem
+// stk_mesh/base/fem
 #include <stk_mesh/base/BulkData.hpp>
 #include <stk_mesh/base/Field.hpp>
 #include <stk_mesh/base/FieldParallel.hpp>
@@ -46,6 +46,11 @@ AMSAlgDriver::AMSAlgDriver(Realm& realm)
     avgTime_(NULL),
     avgMdot_(NULL),
     forcingComp_(NULL),
+    magPM_(NULL),
+    PMmax_(NULL),
+    PM1_(NULL),
+    PM2_(NULL),
+    PM3_(NULL),
     metricTensorAlgDriver_(realm_, "metric_tensor"),
     avgMdotAlg_(realm_),
     turbulenceModel_(realm_.solutionOptions_->turbulenceModel_),
@@ -53,10 +58,11 @@ AMSAlgDriver::AMSAlgDriver(Realm& realm)
 {
   if (!realm.realmUsesEdges_)
     throw std::runtime_error("AMS not supported on element runs.");
-  if (turbulenceModel_ != SST_AMS) {
+  if (!realm.is_ams_model()) {
     throw std::runtime_error(
       "User has requested AMS, however, turbulence model has not been set "
-      "to sst_ams, the only one supported by this driver currently.");
+      "to sst_ams, sstlr_ams, or ke_ams, the only ones supported by this "
+      "driver currently.");
   }
 }
 
@@ -122,6 +128,22 @@ AMSAlgDriver::register_nodal_fields(stk::mesh::Part* part)
   forcingComp_ = &(meta.declare_field<VectorFieldType>(
     stk::topology::NODE_RANK, "forcing_components", numStates));
   stk::mesh::put_field_on_mesh(*forcingComp_, *part, nDim, nullptr);
+
+  magPM_ =
+    &(meta.declare_field<ScalarFieldType>(stk::topology::NODE_RANK, "PMmag"));
+  PMmax_ =
+    &(meta.declare_field<ScalarFieldType>(stk::topology::NODE_RANK, "maxPM"));
+  PM1_ =
+    &(meta.declare_field<ScalarFieldType>(stk::topology::NODE_RANK, "PM1"));
+  PM2_ =
+    &(meta.declare_field<ScalarFieldType>(stk::topology::NODE_RANK, "PM2"));
+  PM3_ =
+    &(meta.declare_field<ScalarFieldType>(stk::topology::NODE_RANK, "PM3"));
+  stk::mesh::put_field_on_mesh(*magPM_, *part, nullptr);
+  stk::mesh::put_field_on_mesh(*PMmax_, *part, nullptr);
+  stk::mesh::put_field_on_mesh(*PM1_, *part, nullptr);
+  stk::mesh::put_field_on_mesh(*PM2_, *part, nullptr);
+  stk::mesh::put_field_on_mesh(*PM3_, *part, nullptr);
 }
 
 void
@@ -148,6 +170,15 @@ AMSAlgDriver::register_interior_algorithm(stk::mesh::Part* part)
     switch (realm_.solutionOptions_->turbulenceModel_) {
     case SST_AMS:
       avgAlg_.reset(new SSTAMSAveragesAlg(realm_, part));
+      break;
+    case SSTLR_AMS:
+      avgAlg_.reset(new SSTLRAMSAveragesAlg(realm_, part));
+      break;
+    case KE_AMS:
+      avgAlg_.reset(new KEAMSAveragesAlg(realm_, part));
+      break;
+    case KO_AMS:
+      avgAlg_.reset(new KOAMSAveragesAlg(realm_, part));
       break;
     default:
       throw std::runtime_error("AMSAlgDriver: non-supported turb model");
@@ -292,7 +323,7 @@ AMSAlgDriver::execute()
     realm_.overset_field_update(avgProduction_, 1, 1, false);
     realm_.overset_field_update(avgTkeResolved_, 1, 1, false);
     realm_.overset_field_update(avgResAdequacy_, 1, 1, false);
-    realm_.overset_field_update(avgDudx_, 3, 3, false);    
+    realm_.overset_field_update(avgDudx_, 3, 3, false);
   }
 
   if (
@@ -312,22 +343,22 @@ AMSAlgDriver::compute_metric_tensor()
 void
 AMSAlgDriver::post_iter_work()
 {
-    const auto& fieldMgr = realm_.ngp_field_manager();
-    const auto& meta = realm_.meta_data();
-    auto& bulk = realm_.bulk_data();
+  const auto& fieldMgr = realm_.ngp_field_manager();
+  const auto& meta = realm_.meta_data();
+  auto& bulk = realm_.bulk_data();
 
-    auto ngpForcingComp =
-      fieldMgr.get_field<double>(forcingComp_->mesh_meta_data_ordinal());
+  auto ngpForcingComp =
+    fieldMgr.get_field<double>(forcingComp_->mesh_meta_data_ordinal());
 
-    ngpForcingComp.sync_to_host();
+  ngpForcingComp.sync_to_host();
 
-    VectorFieldType* forcingComp = meta.get_field<VectorFieldType>(
-      stk::topology::NODE_RANK, "forcing_components");
+  VectorFieldType* forcingComp = meta.get_field<VectorFieldType>(
+    stk::topology::NODE_RANK, "forcing_components");
 
-    stk::mesh::copy_owned_to_shared(bulk, {forcingComp});
-    if (realm_.hasPeriodic_) {
-      realm_.periodic_delta_solution_update(forcingComp, 3);
-    }
+  stk::mesh::copy_owned_to_shared(bulk, {forcingComp});
+  if (realm_.hasPeriodic_) {
+    realm_.periodic_delta_solution_update(forcingComp, 3);
+  }
 }
 
 void
@@ -346,15 +377,20 @@ AMSAlgDriver::predict_state()
   auto& avgProdN = fieldMgr.get_field<double>(
     avgProduction_->field_of_state(stk::mesh::StateN).mesh_meta_data_ordinal());
   auto& avgProdNp1 = fieldMgr.get_field<double>(
-    avgProduction_->field_of_state(stk::mesh::StateNP1).mesh_meta_data_ordinal());
+    avgProduction_->field_of_state(stk::mesh::StateNP1)
+      .mesh_meta_data_ordinal());
   auto& avgTkeResN = fieldMgr.get_field<double>(
-    avgTkeResolved_->field_of_state(stk::mesh::StateN).mesh_meta_data_ordinal());
+    avgTkeResolved_->field_of_state(stk::mesh::StateN)
+      .mesh_meta_data_ordinal());
   auto& avgTkeResNp1 = fieldMgr.get_field<double>(
-    avgTkeResolved_->field_of_state(stk::mesh::StateNP1).mesh_meta_data_ordinal());
+    avgTkeResolved_->field_of_state(stk::mesh::StateNP1)
+      .mesh_meta_data_ordinal());
   auto& avgResAdeqN = fieldMgr.get_field<double>(
-    avgResAdequacy_->field_of_state(stk::mesh::StateN).mesh_meta_data_ordinal());
+    avgResAdequacy_->field_of_state(stk::mesh::StateN)
+      .mesh_meta_data_ordinal());
   auto& avgResAdeqNp1 = fieldMgr.get_field<double>(
-    avgResAdequacy_->field_of_state(stk::mesh::StateNP1).mesh_meta_data_ordinal());
+    avgResAdequacy_->field_of_state(stk::mesh::StateNP1)
+      .mesh_meta_data_ordinal());
 
   avgVelN.sync_to_device();
   avgDudxN.sync_to_device();
@@ -364,10 +400,14 @@ AMSAlgDriver::predict_state()
 
   const auto& meta = realm_.meta_data();
   const stk::mesh::Selector sel =
-    (meta.locally_owned_part() | meta.globally_shared_part() | meta.aura_part())
-    & stk::mesh::selectField(*avgVelocity_);
-  nalu_ngp::field_copy(ngpMesh, sel, avgVelNp1, avgVelN, meta.spatial_dimension());
-  nalu_ngp::field_copy(ngpMesh, sel, avgDudxNp1, avgDudxN, meta.spatial_dimension()*meta.spatial_dimension());
+    (meta.locally_owned_part() | meta.globally_shared_part() |
+     meta.aura_part()) &
+    stk::mesh::selectField(*avgVelocity_);
+  nalu_ngp::field_copy(
+    ngpMesh, sel, avgVelNp1, avgVelN, meta.spatial_dimension());
+  nalu_ngp::field_copy(
+    ngpMesh, sel, avgDudxNp1, avgDudxN,
+    meta.spatial_dimension() * meta.spatial_dimension());
   nalu_ngp::field_copy(ngpMesh, sel, avgProdNp1, avgProdN, 1);
   nalu_ngp::field_copy(ngpMesh, sel, avgTkeResNp1, avgTkeResN, 1);
   nalu_ngp::field_copy(ngpMesh, sel, avgResAdeqNp1, avgResAdeqN, 1);

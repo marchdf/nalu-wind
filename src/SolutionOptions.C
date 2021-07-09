@@ -53,6 +53,7 @@ SolutionOptions::SolutionOptions()
     includeDivU_(0.0),
     mdotInterpRhoUTogether_(true),
     isTurbulent_(false),
+    isAMSModel_(false),
     turbulenceModel_(LAMINAR),
     meshMotion_(false),
     meshTransformation_(false),
@@ -201,17 +202,25 @@ SolutionOptions::load(const YAML::Node & y_node)
     if ( turbulenceModel_ != LAMINAR ) {
       isTurbulent_ = true;
     }
+
     if (turbulenceModel_ == SST_IDDES) {
       get_if_present(
         y_solution_options, "strelets_upwinding", useStreletsUpwinding_,
         useStreletsUpwinding_);
     }
+
     if (turbulenceModel_ == SST) {
       get_if_present(
         y_solution_options, "transition_model", transition_model_,
         transition_model_);
         if (transition_model_ == true) gammaEqActive_ = true;
     }
+
+    if (((turbulenceModel_ == SST_AMS) || (turbulenceModel_ == SSTLR_AMS) ||
+         (turbulenceModel_ == KE_AMS) || (turbulenceModel_ == KO_AMS))) {
+      isAMSModel_ = true;
+    }
+
     // initialize turbulence constants since some laminar models may need such variables, e.g., kappa
     initialize_turbulence_constants();
 
@@ -553,8 +562,9 @@ SolutionOptions::initialize_turbulence_constants()
   turbModelConstantMap_[TM_cDESke] = 0.61; 
   turbModelConstantMap_[TM_cDESkw] = 0.78;
   turbModelConstantMap_[TM_tkeProdLimitRatio] =
-    (turbulenceModel_ == SST || turbulenceModel_ == SST_DES ||
-     turbulenceModel_ == SST_AMS || turbulenceModel_ == SST_IDDES)
+    (turbulenceModel_ == SST || turbulenceModel_ == SSTLR ||
+     turbulenceModel_ == SST_DES || turbulenceModel_ == SST_AMS ||
+     turbulenceModel_ == SSTLR_AMS || turbulenceModel_ == SST_IDDES)
       ? 10.0
       : 500.0;
   turbModelConstantMap_[TM_cmuEps] = 0.0856; 
@@ -605,13 +615,27 @@ SolutionOptions::initialize_turbulence_constants()
   turbModelConstantMap_[TM_ams_peclet_offset] = 0.6;
   turbModelConstantMap_[TM_ams_peclet_slope] = 12.0;
   turbModelConstantMap_[TM_ams_peclet_scale] = 100.0;
+  turbModelConstantMap_[TM_fMuExp] = -0.0115;
+  turbModelConstantMap_[TM_utau] = 1.0;
+  turbModelConstantMap_[TM_cEpsOne] = 1.35;
+  turbModelConstantMap_[TM_cEpsTwo] = 1.80;
+  turbModelConstantMap_[TM_fOne] = 1.0;
+  turbModelConstantMap_[TM_sigmaK] = 1.0;
+  turbModelConstantMap_[TM_sigmaEps] = 1.3;
+  turbModelConstantMap_[TM_alphaPow] = 1.7;
+  turbModelConstantMap_[TM_alphaScaPow] = 1.0;
+  turbModelConstantMap_[TM_coeffR] = 1.0;
+  turbModelConstantMap_[TM_sstLRDestruct] = 1.0;
+  turbModelConstantMap_[TM_sstLRProd] = 1.0;
   turbModelConstantMap_[TM_tkeAmb] = 0.0;
   turbModelConstantMap_[TM_sdrAmb] = 0.0;
   turbModelConstantMap_[TM_avgTimeCoeff] = 1.0;
+  turbModelConstantMap_[TM_alphaInf] = 0.52;
   turbModelConstantMap_[TM_caOne] = 2.0;
   turbModelConstantMap_[TM_caTwo] = 0.06;
   turbModelConstantMap_[TM_ceOne] = 1.0;
   turbModelConstantMap_[TM_ceTwo] = 50.0;
+  turbModelConstantMap_[TM_c0t] = 0.03;
 }
 
 

@@ -349,6 +349,8 @@ class Realm {
   void is_turbulent(
     bool isIt);
 
+  bool is_ams_model();
+
   bool needs_enthalpy();
   void needs_enthalpy(bool needsEnthalpy);
 
